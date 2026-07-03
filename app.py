@@ -212,6 +212,57 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"], .main, .b
     background-color: var(--card-hover);
 }}
 
+/* Heatmap Table Styles */
+.heatmap-table {{
+    border-collapse: collapse;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    width: 100%;
+}}
+.heatmap-table th {{
+    font-size: 8.5px;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: bottom;
+    border-bottom: 2px solid var(--border);
+    padding: 4px 4px 8px 4px;
+    min-width: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--bg);
+}}
+.heatmap-table th .hdr-label {{
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    line-height: 1.3;
+    max-height: 2.6em;
+}}
+.heatmap-table td.row-lbl {{
+    font-size: 9.5px;
+    font-weight: bold;
+    text-align: right;
+    padding: 3px 8px;
+    border-right: 2px solid var(--border);
+    min-width: 165px;
+    max-width: 165px;
+    width: 165px;
+    white-space: nowrap;
+}}
+.heatmap-table td.cell {{
+    text-align: center;
+    font-weight: bold;
+    font-size: 8px;
+    min-width: 20px;
+    height: 20px;
+    border: 1px solid var(--border-subtle);
+    cursor: help;
+}}
+
+
 /* Badges and Delta cells */
 .badge {{
     display: inline-block;
@@ -587,8 +638,13 @@ def calculate_metrics(df_uls, df_ids, start_month, end_month):
             sub_2024 = base_by_uls.get(uls, pd.DataFrame())
             
             def get_val(subset, periods, latest_month):
+                if subset.empty:
+                    return np.nan
                 if src_filter:
-                    subset = subset[subset['_fonte'] == src_filter]
+                    if '_fonte' in subset.columns:
+                        subset = subset[subset['_fonte'] == src_filter]
+                    else:
+                        return np.nan
                 if subset.empty:
                     return np.nan
                 if ind_type == "Mensal":
