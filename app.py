@@ -1064,6 +1064,129 @@ else:
     raw_national_avg = df_raw_vals_p.mean(axis=1)
     raw_group_avg = df_raw_vals_p[peer_uls].mean(axis=1)
     
+    # --- TREND MOMENTUM & OUTLIERS CALCULATIONS ---
+    # Find recent 3 periods for trend analysis
+    p_idx = periods.index(sel_period) if sel_period in periods else len(periods)-1
+    recent_3_periods = periods[max(0, p_idx-2):p_idx+1]
+    
+    # Extract historical column names for query
+    all_indicator_cols = []
+    for ind in heatmap_indicators:
+        if ind.get("col"): all_indicator_cols.append(ind["col"])
+        if ind.get("sum_cols"): all_indicator_cols.extend(ind["sum_cols"])
+        if ind.get("ratio_cols"): all_indicator_cols.extend(ind["ratio_cols"])
+    all_indicator_cols = list(dict.fromkeys(all_indicator_cols))
+    cols_fetch_str = ", ".join(f'"{c}"' for c in all_indicator_cols)
+    
+    db_path = "sns_indicadores.db"
+    conn = sqlite3.connect(db_path)
+    df_trend_raw = pd.read_sql(
+        f"SELECT periodo, _fonte, {cols_fetch_str} FROM indicadores_sns WHERE mapped_uls = ? AND periodo IN ({','.join('?' for _ in recent_3_periods)})",
+        conn, params=[sel_uls] + recent_3_periods
+    )
+    conn.close()
+    
+    # Calculate 3-month trend badges
+    trend_badges = {}
+    for ind in heatmap_indicators:
+        ind_name = ind["name"]
+        src_filter = ind.get("source_filter")
+        ind_type = ind["type"]
+        ratio_cols = ind.get("ratio_cols")
+        sum_cols = ind.get("sum_cols")
+        col = ind.get("col")
+        sentido = ind["sentido"]
+        
+        vals_by_p = []
+        for p in recent_3_periods:
+            df_p = df_trend_raw[df_trend_raw['periodo'] == p]
+            if df_p.empty:
+                vals_by_p.append(np.nan)
+                continue
+            if src_filter:
+                if '_fonte' in df_p.columns:
+                    df_p = df_p[df_p['_fonte'] == src_filter]
+                else:
+                    df_p = pd.DataFrame()
+            if df_p.empty:
+                vals_by_p.append(np.nan)
+                continue
+                
+            val = np.nan
+            if ind_type == "Mensal":
+                if ratio_cols:
+                    valid_sub = df_p[df_p[ratio_cols[0]].notna() & df_p[ratio_cols[1]].notna()]
+                    num = valid_sub[ratio_cols[0]].sum()
+                    den = valid_sub[ratio_cols[1]].sum()
+                    val = (num / den * 100) if den > 0 else np.nan
+                elif sum_cols:
+                    val = df_p[sum_cols].sum(skipna=True).sum()
+                else:
+                    val = df_p[col].sum(skipna=True)
+            else: # Stock / Acumulado
+                if ratio_cols:
+                    valid_rows = df_p[df_p[ratio_cols[0]].notna() & df_p[ratio_cols[1]].notna()]
+                    if not valid_rows.empty:
+                        val = (valid_rows[ratio_cols[0]].values[0] / valid_rows[ratio_cols[1]].values[0]) * 100
+                elif sum_cols:
+                    valid_rows = df_p[df_p[sum_cols].notna().any(axis=1)]
+                    if not valid_rows.empty:
+                        val = valid_rows[sum_cols].sum(axis=1).values[0]
+                else:
+                    valid_rows = df_p[df_p[col].notna()]
+                    if not valid_rows.empty:
+                        val = valid_rows[col].values[0]
+            vals_by_p.append(val)
+            
+        valid_vals = [v for v in vals_by_p if pd.notna(v)]
+        if len(valid_vals) >= 2:
+            v_old = valid_vals[0]
+            v_new = valid_vals[-1]
+            diff = v_new - v_old
+            if abs(diff) < 1e-4:
+                trend_badges[ind_name] = '<span style="color: var(--text-dim); margin-left: 6px; font-weight: 700;" title="Tendência: Estável">→</span>'
+            else:
+                is_fav = diff >= 0 if sentido == "+" else diff <= 0
+                arrow = "▲" if is_fav else "▼"
+                color = "var(--green)" if is_fav else "var(--red)"
+                trend_badges[ind_name] = f'<span style="color: {color}; margin-left: 6px; font-weight: 700; font-size: 0.72rem;" title="Tendência de 3 meses">{arrow}</span>'
+        else:
+            trend_badges[ind_name] = '<span style="color: var(--text-dim); margin-left: 6px; font-weight: 700;" title="Tendência: Estável">→</span>'
+            
+    # Calculate Outliers Diagnostics
+    diagnostics = []
+    for ind in heatmap_indicators:
+        ind_name = ind["name"]
+        sentido = ind["sentido"]
+        val_raw = df_raw_vals_p.at[ind_name, sel_uls] if ind_name in df_raw_vals_p.index else np.nan
+        val_grp = raw_group_avg.get(ind_name, np.nan)
+        val_nat = raw_national_avg.get(ind_name, np.nan)
+        
+        ref_val = val_grp if pd.notna(val_grp) and val_grp > 0 else (val_nat if pd.notna(val_nat) and val_nat > 0 else np.nan)
+        if pd.notna(val_raw) and pd.notna(ref_val) and ref_val > 0:
+            dev = ((val_raw - ref_val) / ref_val) * 100
+            perf_score = dev if sentido == "+" else -dev
+            
+            is_pct_ind = ind_name in ind_pct_map and ind_pct_map[ind_name]
+            is_pp_ind = ("%" in ind_name or "Taxa" in ind_name or "Proporção" in ind_name or "Percentagem" in ind_name)
+            if "Dívida" in ind_name or "EBITDA" in ind_name:
+                raw_str = f"{(val_raw/1e6):.2f} M€"
+            elif is_pct_ind or is_pp_ind:
+                raw_str = f"{val_raw:.1f}%"
+            else:
+                raw_str = f"{val_raw:,.0f}"
+                
+            diagnostics.append({
+                "name": ind_name,
+                "dev": dev,
+                "score": perf_score,
+                "raw_str": raw_str,
+                "ref_type": "Grupo" if pd.notna(val_grp) and val_grp > 0 else "Nacional"
+            })
+            
+    best_performers = sorted(diagnostics, key=lambda x: x["score"], reverse=True)[:3]
+    worst_performers = sorted(diagnostics, key=lambda x: x["score"], reverse=False)[:3]
+    
     # Display header of institutional profile
     st.markdown(f"""
     <div style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1.2rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow);">
@@ -1079,6 +1202,49 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Render Outliers Diagnostic Panel
+    outliers_html = []
+    outliers_html.append('<div style="display: flex; gap: 16px; margin-bottom: 1.2rem; flex-wrap: wrap; width: 100%;">')
+    outliers_html.append(f"""
+    <div style="flex: 1; min-width: 280px; background: { 'rgba(34,197,94,0.04)' if not IS_DARK else 'rgba(34,197,94,0.015)' }; border: 1px solid { 'rgba(34,197,94,0.18)' if not IS_DARK else 'rgba(34,197,94,0.08)' }; border-radius: var(--radius); padding: 0.7rem 0.9rem;">
+        <div style="color: var(--green); font-weight: 700; font-size: 0.76rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 6px;">
+            <span>🟢 Destaques Positivos (Top Perf.)</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+    """)
+    for item in best_performers:
+        sign = "+" if item["dev"] >= 0 else ""
+        outliers_html.append(f"""
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem;">
+                <span style="color: var(--text); font-weight: 500;">{item["name"]}</span>
+                <span style="color: var(--green); font-weight: 700;">{item["raw_str"]} ({sign}{item["dev"]:.1f}% vs {item["ref_type"]})</span>
+            </div>
+        """)
+    if not best_performers:
+        outliers_html.append('<div style="font-size: 0.72rem; color: var(--text-dim);">Sem destaques identificados.</div>')
+    outliers_html.append('</div></div>')
+    
+    outliers_html.append(f"""
+    <div style="flex: 1; min-width: 280px; background: { 'rgba(239,68,68,0.04)' if not IS_DARK else 'rgba(239,68,68,0.015)' }; border: 1px solid { 'rgba(239,68,68,0.18)' if not IS_DARK else 'rgba(239,68,68,0.08)' }; border-radius: var(--radius); padding: 0.7rem 0.9rem;">
+        <div style="color: var(--red); font-weight: 700; font-size: 0.76rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 6px;">
+            <span>🔴 Pontos Críticos (Alertas)</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+    """)
+    for item in worst_performers:
+        sign = "+" if item["dev"] >= 0 else ""
+        outliers_html.append(f"""
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem;">
+                <span style="color: var(--text); font-weight: 500;">{item["name"]}</span>
+                <span style="color: var(--red); font-weight: 700;">{item["raw_str"]} ({sign}{item["dev"]:.1f}% vs {item["ref_type"]})</span>
+            </div>
+        """)
+    if not worst_performers:
+        outliers_html.append('<div style="font-size: 0.72rem; color: var(--text-dim);">Sem alertas identificados.</div>')
+    outliers_html.append('</div></div></div>')
+    
+    st.html("".join(outliers_html))
     
     # Render the 4 columns grid
     profile_columns_html = []
@@ -1162,12 +1328,13 @@ else:
             item_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={new_pmode}&end={sel_period}"
             
             area = indicator_areas.get(ind_name, "Geral")
+            trend_badge = trend_badges.get(ind_name, "")
             
             profile_columns_html.append(f"""
             <a href="{item_href}" target="_self" class="profile-ind-item {selected_class}">
                 <div class="profile-ind-name-row">
                     <span class="profile-ind-name">{ind_name}</span>
-                    <span class="profile-ind-val"{val_color_style}>{val_str}</span>
+                    <span class="profile-ind-val"{val_color_style}>{val_str}{trend_badge}</span>
                 </div>
                 <div class="profile-ind-sub-row">
                     <span>Área: {area}</span>
@@ -1417,6 +1584,165 @@ else:
             st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
             st.markdown('</div>', unsafe_allow_html=True)
+            
+            # --- CROSS-CORRELATION ANALYSIS PANEL ---
+            corr_pairs = {
+                "Cons. Hospitalares": "Dias de Ausência",
+                "1ªs Consultas": "Dias de Ausência",
+                "Cir. Programadas": "Dias de Ausência",
+                "Cir. Ambulatório": "Dias de Ausência",
+                "Urgências": "Horas Trab. Extra",
+                "Total Urgência (Link)": "Horas Trab. Extra",
+                "Dias de Ausência": "Cons. Hospitalares",
+                "Horas Trab. Extra": "Cons. Hospitalares",
+                "Consultas CSP": "% Utentes c/ MdF",
+                "Cont. Enfermagem CSP": "% Utentes c/ MdF",
+                "Acesso Cons. CSP": "% Utentes c/ MdF"
+            }
+            
+            selected_ind_name = st.session_state.selected_ind
+            if selected_ind_name in corr_pairs:
+                corr_ind_name = corr_pairs[selected_ind_name]
+                
+                # Fetch metadata for the correlation indicator
+                corr_meta = [ind for ind in heatmap_indicators if ind["name"] == corr_ind_name][0]
+                corr_cols = []
+                if corr_meta.get("col"): corr_cols.append(corr_meta["col"])
+                if corr_meta.get("sum_cols"): corr_cols.extend(corr_meta["sum_cols"])
+                if corr_meta.get("ratio_cols"): corr_cols.extend(corr_meta["ratio_cols"])
+                corr_cols = list(dict.fromkeys(corr_cols))
+                
+                # Query correlation historical values
+                conn = sqlite3.connect("sns_indicadores.db")
+                df_corr_raw = pd.read_sql(
+                    f"SELECT periodo, mapped_uls, _fonte, {', '.join(f'\"{c}\"' for c in corr_cols)} FROM indicadores_sns WHERE periodo >= '2024-01' ORDER BY periodo", conn
+                )
+                conn.close()
+                
+                # Calculate timeline points for correlation indicator
+                corr_timeline = []
+                c_src_filter = corr_meta.get("source_filter")
+                c_ind_type = corr_meta["type"]
+                c_ratio_cols = corr_meta.get("ratio_cols")
+                c_sum_cols = corr_meta.get("sum_cols")
+                c_col = corr_meta.get("col")
+                
+                for p in historical_periods:
+                    df_p = df_corr_raw[df_corr_raw['periodo'] == p]
+                    u_df = df_p[df_p['mapped_uls'] == sel_uls]
+                    
+                    if c_src_filter and not u_df.empty:
+                        if '_fonte' in u_df.columns:
+                            u_df = u_df[u_df['_fonte'] == c_src_filter]
+                        else:
+                            u_df = pd.DataFrame()
+                            
+                    if u_df.empty:
+                        corr_timeline.append(np.nan)
+                        continue
+                        
+                    val = np.nan
+                    if c_ind_type == "Mensal":
+                        if c_ratio_cols:
+                            valid_sub = u_df[u_df[c_ratio_cols[0]].notna() & u_df[c_ratio_cols[1]].notna()]
+                            num = valid_sub[c_ratio_cols[0]].sum()
+                            den = valid_sub[c_ratio_cols[1]].sum()
+                            val = (num / den * 100) if den > 0 else np.nan
+                        elif c_sum_cols:
+                            val = u_df[c_sum_cols].sum(skipna=True).sum()
+                        else:
+                            val = u_df[c_col].sum(skipna=True)
+                    else: # Stock / Acumulado
+                        if c_ratio_cols:
+                            valid_rows = u_df[u_df[c_ratio_cols[0]].notna() & u_df[c_ratio_cols[1]].notna()]
+                            if not valid_rows.empty:
+                                val = (valid_rows[c_ratio_cols[0]].values[0] / valid_rows[c_ratio_cols[1]].values[0]) * 100
+                        elif c_sum_cols:
+                            valid_rows = u_df[u_df[c_sum_cols].notna().any(axis=1)]
+                            if not valid_rows.empty:
+                                val = valid_rows[c_sum_cols].sum(axis=1).values[0]
+                        else:
+                            valid_rows = u_df[u_df[c_col].notna()]
+                            if not valid_rows.empty:
+                                val = valid_rows[c_col].values[0]
+                    corr_timeline.append(val)
+                    
+                # Primary indicator timeline values
+                primary_vals = df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Valor'].tolist()
+                
+                # Combine into a pandas dataframe for Pearson correlation calculation
+                df_corr_calc = pd.DataFrame({
+                    "primary": primary_vals,
+                    "secondary": corr_timeline
+                }).dropna()
+                
+                if len(df_corr_calc) >= 4:
+                    r_val = df_corr_calc["primary"].corr(df_corr_calc["secondary"])
+                    
+                    st.markdown(f"""
+                    <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
+                        <h4 style="margin: 0; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                            <span>🔍 Análise de Correlação Causa-Efeito</span>
+                        </h4>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Interpret correlation value
+                    if pd.isna(r_val):
+                        interpret = "Correlação inconclusiva devido à variabilidade dos dados."
+                    elif r_val > 0.6:
+                        interpret = f"Há uma **forte correlação positiva** (\\\\(r = {r_val:.2f}\\\\)), sugerindo que aumentos em '{selected_ind_name}' estão diretamente alinhados com o aumento de '{corr_ind_name}' ao longo do tempo."
+                    elif r_val < -0.6:
+                        interpret = f"Há uma **forte correlação inversa** (\\\\(r = {r_val:.2f}\\\\)), indicando que aumentos nas ausências ou restrições de '{corr_ind_name}' coincidem historicamente com quedas de produtividade em '{selected_ind_name}'."
+                    else:
+                        interpret = f"Regista-se uma **correlação fraca ou moderada** (\\\\(r = {r_val:.2f}\\\\)) entre as duas métricas, o que indica que outros fatores externos influenciam a evolução."
+                        
+                    st.markdown(f'<div style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 0.8rem; line-height: 1.4;">{interpret}</div>', unsafe_allow_html=True)
+                    
+                    # Create secondary Y-axis Plotly Chart
+                    from plotly.subplots import make_subplots
+                    fig_corr = make_subplots(specs=[[{"secondary_y": True}]])
+                    
+                    fig_corr.add_trace(
+                        go.Scatter(x=historical_periods, y=primary_vals, name=selected_ind_name, line=dict(color="#2563eb", width=3)),
+                        secondary_y=False
+                    )
+                    
+                    fig_corr.add_trace(
+                        go.Scatter(x=historical_periods, y=corr_timeline, name=corr_ind_name, line=dict(color="#ef4444", width=2, dash="dash")),
+                        secondary_y=True
+                    )
+                    
+                    fig_corr.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=10),
+                        margin=dict(l=40, r=40, t=10, b=40),
+                        hovermode="x unified",
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        xaxis=dict(
+                            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                            tickangle=-45
+                        ),
+                        yaxis=dict(
+                            title=selected_ind_name,
+                            titlefont=dict(color="#2563eb"),
+                            tickfont=dict(color="#2563eb"),
+                            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                        ),
+                        yaxis2=dict(
+                            title=corr_ind_name,
+                            titlefont=dict(color="#ef4444"),
+                            tickfont=dict(color="#ef4444"),
+                            overlaying="y",
+                            side="right"
+                        )
+                    )
+                    
+                    st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
+                    st.plotly_chart(fig_corr, use_container_width=True, config={"displayModeBar": False})
+                    st.markdown('</div>', unsafe_allow_html=True)
+            
         except Exception as chart_err:
             st.markdown(f'<div class="chart-wrap" style="text-align: center; padding: 2rem; color: var(--text-muted);">Não foi possível gerar o gráfico para este indicador: {str(chart_err)}</div>', unsafe_allow_html=True)
         
