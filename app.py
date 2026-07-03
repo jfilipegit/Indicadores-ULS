@@ -253,7 +253,7 @@ st.markdown(theme_css, unsafe_allow_html=True)
 # 4. Data Loading and Normalization (Cached)
 @st.cache_data
 def load_data():
-    db_path = r"c:\Users\jfili\Documents\Indicadores SNS\sns_indicadores.db"
+    db_path = "sns_indicadores.db"
     conn = sqlite3.connect(db_path)
     
     # Load ULS metadata
