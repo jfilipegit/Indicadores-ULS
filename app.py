@@ -366,7 +366,7 @@ def calculate_metrics(df_uls, df_ids, start_month, end_month):
     ]
     cols_str = ", ".join(f'"{c}"' for c in cols_to_query)
     
-    db_path = r"c:\Users\jfili\Documents\Indicadores SNS\sns_indicadores.db"
+    db_path = "sns_indicadores.db"
     conn = sqlite3.connect(db_path)
     all_periods = sorted(list(set(periods_current + periods_homologous + periods_2024)))
     placeholders = ",".join("?" for _ in all_periods)
