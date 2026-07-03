@@ -1036,7 +1036,10 @@ else:
         new_pmode = "indicadores" if "Indicadores" in sel_pmode else "comparacao"
         
     with c_period:
-        sel_period = st.selectbox("PERÍODO:", options=reversed_periods, index=0, key="sel_period_box")
+        period_idx = 0
+        if _url_end_month and _url_end_month in reversed_periods:
+            period_idx = reversed_periods.index(_url_end_month)
+        sel_period = st.selectbox("PERÍODO:", options=reversed_periods, index=period_idx, key="sel_period_box")
 
     # Get financing group of selected ULS
     uls_grp = df_uls[df_uls['ULS'] == sel_uls]['Grupo'].dropna().values[0]
@@ -1131,7 +1134,7 @@ else:
             
             ind_url_safe = ind_name.replace(" ", "_").replace("%", "pct").replace("/", "slash")
             uls_url_safe = sel_uls.replace(" ", "_").replace("/", "slash")
-            item_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={new_pmode}"
+            item_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={new_pmode}&end={sel_period}"
             
             area = indicator_areas.get(ind_name, "Geral")
             
@@ -1297,63 +1300,58 @@ else:
     
     fig = go.Figure()
     
-    # ULS Timeline (Thick blue line with markers)
-    fig.add_trace(go.Scatter(
-        x=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Periodo'],
-        y=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Valor'],
-        name=f"ULS {sel_uls}",
-        line=dict(color="#2563eb", width=3),
-        mode="lines+markers",
-        marker=dict(size=6, symbol="circle")
-    ))
-    
-    # Group Timeline (Yellow line)
-    fig.add_trace(go.Scatter(
-        x=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Periodo'],
-        y=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Valor'],
-        name=f"Média Grupo {uls_grp}",
-        line=dict(color="#f59e0b", width=2, dash="dash"),
-        mode="lines"
-    ))
-    
-    # SNS Timeline (Grey line)
-    fig.add_trace(go.Scatter(
-        x=df_chart[df_chart['Tipo'] == "Média SNS"]['Periodo'],
-        y=df_chart[df_chart['Tipo'] == "Média SNS"]['Valor'],
-        name="Média Nacional (SNS)",
-        line=dict(color="#71717a", width=2, dash="dot"),
-        mode="lines"
-    ))
-    
-    # Apply theme styling
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=11),
-        margin=dict(l=40, r=20, t=10, b=40),
-        hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        xaxis=dict(
-            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-            zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-            tickangle=-45
-        ),
-        yaxis=dict(
-            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-            zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+    if df_chart.empty or df_chart['Valor'].dropna().empty:
+        st.markdown('<div class="chart-wrap" style="text-align: center; padding: 2rem; color: var(--text-muted);">Não existem dados históricos suficientes para gerar o gráfico comparativo deste indicador.</div>', unsafe_allow_html=True)
+    else:
+        # ULS Timeline (Thick blue line with markers)
+        fig.add_trace(go.Scatter(
+            x=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Periodo'],
+            y=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Valor'],
+            name=f"ULS {sel_uls}",
+            line=dict(color="#2563eb", width=3),
+            mode="lines+markers",
+            marker=dict(size=6, symbol="circle")
+        ))
+        
+        # Group Timeline (Yellow line)
+        fig.add_trace(go.Scatter(
+            x=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Periodo'],
+            y=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Valor'],
+            name=f"Média Grupo {uls_grp}",
+            line=dict(color="#f59e0b", width=2, dash="dash"),
+            mode="lines"
+        ))
+        
+        # Play / SNS Timeline (Grey line)
+        fig.add_trace(go.Scatter(
+            x=df_chart[df_chart['Tipo'] == "Média SNS"]['Periodo'],
+            y=df_chart[df_chart['Tipo'] == "Média SNS"]['Valor'],
+            name="Média Nacional (SNS)",
+            line=dict(color="#71717a", width=2, dash="dot"),
+            mode="lines"
+        ))
+        
+        # Apply theme styling
+        fig.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=11),
+            margin=dict(l=40, r=20, t=10, b=40),
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            xaxis=dict(
+                gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                tickangle=-45
+            ),
+            yaxis=dict(
+                gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+            )
         )
-    )
-    
-    st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-    st.markdown('</div>', unsafe_allow_html=True)
-    
+        
+        st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.markdown('</div>', unsafe_allow_html=True)
+        
 st.markdown("</div>", unsafe_allow_html=True)
-
-
-# 10. Summary info
-st.markdown("""
-> **Dica de Leitura:**
-> * **Tons de Verde** representam melhorias de desempenho (aumento de indicadores positivos como consultas/cirurgias ou diminuição de indicadores negativos como urgências/demora média/dívida).
-> * **Tons de Vermelho** indicam evolução desfavorável ou desvios desfavoráveis face ao período homólogo ou ano base.
-""")
