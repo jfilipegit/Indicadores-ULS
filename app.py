@@ -314,7 +314,7 @@ df_uls, df_ids, periods = load_data()
 @st.cache_data
 def calculate_metrics(df_uls, df_ids, start_month, end_month):
     # Get all distinct periods in range from db
-    db_path = r"c:\Users\jfili\Documents\Indicadores SNS\sns_indicadores.db"
+    db_path = "sns_indicadores.db"
     conn = sqlite3.connect(db_path)
     df_p = pd.read_sql(
         "SELECT DISTINCT periodo FROM indicadores_sns WHERE periodo >= ? AND periodo <= ? ORDER BY periodo",
