@@ -20,6 +20,23 @@ if "theme" not in st.session_state:
 
 # Sync with URL query parameters for click-to-sort AND filter preservation
 params = st.query_params
+
+# Page control ('matriz' or 'perfil')
+page = params.get("page", "matriz")
+st.session_state.page = page
+
+# Selected Indicator for Profile Page (defaults to first indicator in list)
+selected_ind = params.get("ind", "% 1ªs Cons. Tempo Adeq.").replace("_", " ").replace("pct", "%").replace("slash", "/")
+st.session_state.selected_ind = selected_ind
+
+# Selected ULS for Profile Page (defaults to 'Baixo Mondego' or first available)
+selected_uls = params.get("uls", "Baixo Mondego").replace("_", " ").replace("slash", "/")
+st.session_state.selected_uls = selected_uls
+
+# Toggle for Profile Page comparison mode ('indicadores' or 'comparacao')
+profile_mode = params.get("pmode", "comparacao")
+st.session_state.profile_mode = profile_mode
+
 if "sort" in params:
     q_sort = params["sort"].replace("_", " ").replace("pct", "%").replace("slash", "/")
     st.session_state.sort_ind = q_sort
@@ -28,7 +45,7 @@ else:
     st.session_state.sort_ind = None
     st.session_state.sort_state = 0
 
-# Restore filter values from URL params (set when sort links are clicked)
+# Restore filter values from URL params (set when sort/nav links are clicked)
 _url_end_month  = params.get("end",   None)
 _url_start_month= params.get("start", None)
 _url_persp_idx  = params.get("persp", None)
@@ -245,6 +262,167 @@ div[data-testid="stVerticalBlock"] > div {{
 div[data-baseweb="popover"] {{
     background-color: var(--card) !important;
     color: var(--text) !important;
+}}
+
+/* Page navigation pill tabs */
+.nav-container {{
+    display: flex;
+    gap: 8px;
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+}}
+.nav-tab {{
+    padding: 0.35rem 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border);
+}}
+.nav-tab-active {{
+    background-color: var(--accent);
+    color: #ffffff !important;
+    border-color: var(--accent);
+}}
+.nav-tab-inactive {{
+    background-color: var(--card);
+    color: var(--text-muted) !important;
+}}
+.nav-tab-inactive:hover {{
+    background-color: var(--card-hover);
+    color: var(--text) !important;
+}}
+
+/* Profile themed grid layout */
+.profile-grid {{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+}}
+@media (max-width: 1024px) {{
+    .profile-grid {{ grid-template-columns: repeat(2, 1fr); }}
+}}
+@media (max-width: 640px) {{
+    .profile-grid {{ grid-template-columns: 1fr; }}
+}}
+
+.profile-card {{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+}}
+.profile-card-header {{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text);
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+}}
+.profile-card-header-icon {{
+    font-size: 0.95rem;
+}}
+.profile-ind-list {{
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 4px;
+}}
+/* Scrollbar styling for list */
+.profile-ind-list::-webkit-scrollbar {{
+    width: 4px;
+}}
+.profile-ind-list::-webkit-scrollbar-track {{
+    background: transparent;
+}}
+.profile-ind-list::-webkit-scrollbar-thumb {{
+    background: var(--border);
+    border-radius: 4px;
+}}
+
+.profile-ind-item {{
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.6rem;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+    text-decoration: none !important;
+    transition: all 0.15s ease;
+}}
+.profile-ind-item:hover {{
+    background-color: var(--card-hover);
+}}
+.profile-ind-item-selected {{
+    background-color: { 'rgba(37,99,235,0.08)' if not IS_DARK else 'rgba(37,99,235,0.15)' };
+    border-color: var(--accent);
+}}
+.profile-ind-name-row {{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}}
+.profile-ind-name {{
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 70%;
+    line-height: 1.25;
+}}
+.profile-ind-val {{
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text);
+}}
+.profile-ind-sub-row {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 3px;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+}}
+.profile-ind-devs {{
+    display: flex;
+    gap: 6px;
+}}
+
+/* Mini KPIs row */
+.profile-kpis-grid {{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}}
+.profile-kpi-card {{
+    background: var(--bg-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 0.6rem 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}}
+.profile-kpi-lbl {{
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}}
+.profile-kpi-val {{
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
 }}
 </style>
 """
@@ -508,364 +686,619 @@ def calculate_metrics(df_uls, df_ids, start_month, end_month):
                 
     return output_var_hom, output_base_idx, output_grupo_pos, output_var_hom_raw
 
-# 6. Main Page Top Header with Title and all Inline selectors on a single line
-col_title, col_de, col_ate, col_persp, col_group = st.columns([1.5, 0.6, 0.6, 1.1, 1.1])
-
+# 6. Global Top Navigation Header
 all_periods = sorted([str(p) for p in periods if str(p).strip().lower() != 'nan'])
+reversed_periods = all_periods[::-1]
 
-with col_title:
-    st.markdown("<h3 style='margin: 0.3rem 0; font-size: 1.15rem; font-weight: 700; color: var(--text); line-height: 1.2;'>ULS Regionais<br><span style='font-size: 0.78rem; font-weight: 500; color: var(--text-muted);'>Relatório de Desempenho</span></h3>", unsafe_allow_html=True)
+# Top Nav Container
+nav_html = f"""
+<div class="nav-container">
+    <a href="?page=matriz" class="nav-tab {"nav-tab-active" if page == "matriz" else "nav-tab-inactive"}">← Matriz Operacional</a>
+    <a href="?page=perfil" class="nav-tab {"nav-tab-active" if page == "perfil" else "nav-tab-inactive"}">Perfil Institucional</a>
+</div>
+"""
+st.markdown(nav_html, unsafe_allow_html=True)
 
-with col_ate:
-    # End Month selector — restore from URL if coming from a sort link
-    reversed_periods = all_periods[::-1]
-    ate_index = 0
-    if _url_end_month and _url_end_month in reversed_periods:
-        ate_index = reversed_periods.index(_url_end_month)
-    end_month = st.selectbox(
-        "ATÉ:",
-        options=reversed_periods,
-        index=ate_index,
-        key="end_month_sel"
-    )
-
-# Standard YTD start period logic based on end month
-end_year = end_month[:4]
-default_start = f"{end_year}-01"
-if default_start not in all_periods:
-    default_start = all_periods[0]
+# ----------------------------------------------------
+# PAGE 1: MATRIZ OPERACIONAL (HEATMAP)
+# ----------------------------------------------------
+if page == "matriz":
+    col_title, col_de, col_ate, col_persp, col_group = st.columns([1.5, 0.6, 0.6, 1.1, 1.1])
     
-start_options = [p for p in all_periods if p <= end_month]
-try:
-    start_index = start_options.index(default_start)
-except ValueError:
-    start_index = 0
-# Override with URL value if present
-if _url_start_month and _url_start_month in start_options:
-    start_index = start_options.index(_url_start_month)
-
-with col_de:
-    start_month = st.selectbox(
-        "DE:",
-        options=start_options,
-        index=start_index,
-        key="start_month_sel"
-    )
-
-persp_options = [
-    "Variação Homóloga (vs. Período Homólogo)",
-    "Índice Base 2024 (2024 = 100)",
-    "Posição Relativa face à Média do Grupo"
-]
-persp_index = 0
-if _url_persp_idx is not None:
-    try:
-        persp_index = int(_url_persp_idx)
-    except:
-        persp_index = 0
-
-with col_persp:
-    perspective = st.selectbox(
-        "PERSPETIVA:",
-        options=persp_options,
-        index=persp_index,
-        key="persp_sel"
-    )
-
-with col_group:
-    available_grps = sorted(df_uls['Grupo'].dropna().unique().tolist())
-    # Restore group selection from URL if present (set when sort links are clicked)
-    if _url_groups:
-        default_grps = [g for g in _url_groups.split(",") if g in available_grps]
-        if not default_grps:
-            default_grps = available_grps
-    else:
-        # Default on fresh page load: only Grupo C (for testing purposes)
-        default_grps = [g for g in available_grps if g == "Grupo C"]
-        if not default_grps:
-            default_grps = available_grps
-    group_filter = st.multiselect(
-        "GRUPO ULS:",
-        options=available_grps,
-        default=default_grps,
-        key="group_sel"
-    )
-
-# Compute calculations
-df_var_hom, df_base_idx, df_grupo_pos, df_raw_vals = calculate_metrics(df_uls, df_ids, start_month, end_month)
-
-# Filter ULS columns based on Group
-df_uls_filtered = df_uls[df_uls['Grupo'].isin(group_filter)]
-uls_to_show = sorted(df_uls_filtered['ULS'].unique().tolist())
-
-# Select proper metric DataFrame
-if "Variação Homóloga" in perspective:
-    base_df = df_var_hom.copy()
-    metric_title = "Variação Homóloga (%) ou Ponto Percentual (pp)"
-    colorscale = [[0.0, "#dc2626"], [0.5, "#f4f4f5"], [1.0, "#16a34a"]] # Red to white to green
-    zmin, zmax = -15, 15
-    val_suffix = "%"
-elif "Índice Base 2024" in perspective:
-    base_df = df_base_idx.copy()
-    metric_title = "Índice Base 2024 (100 = Alinhado)"
-    colorscale = [[0.0, "#dc2626"], [0.5, "#f4f4f5"], [1.0, "#16a34a"]]
-    zmin, zmax = 80, 120
-    val_suffix = ""
-else:
-    base_df = df_grupo_pos.copy()
-    metric_title = "Posição face ao Grupo (100 = Média do Grupo)"
-    colorscale = [[0.0, "#dc2626"], [0.5, "#f4f4f5"], [1.0, "#16a34a"]]
-    zmin, zmax = 85, 115
-    val_suffix = ""
-
-# Calculate summary columns (SNS is average of all ULS; Média Grupo is average of active group)
-val_sns = base_df.mean(axis=1)
-plot_df = base_df[uls_to_show].copy()
-
-# Add to plot_df at the first positions
-plot_df.insert(0, "SNS", val_sns)
-if len(group_filter) == 1:
-    val_grp = plot_df.drop(columns=["SNS"]).mean(axis=1)
-    plot_df.insert(1, "Média Grupo", val_grp)
-
-# Add to df_raw_vals as well for hover text
-raw_sns = df_raw_vals.mean(axis=1)
-raw_plot_vals = df_raw_vals[uls_to_show].copy()
-
-raw_plot_vals.insert(0, "SNS", raw_sns)
-if len(group_filter) == 1:
-    raw_grp = raw_plot_vals.drop(columns=["SNS"]).mean(axis=1)
-    raw_plot_vals.insert(1, "Média Grupo", raw_grp)
+    with col_title:
+        st.markdown("<h3 style='margin: 0.3rem 0; font-size: 1.15rem; font-weight: 700; color: var(--text); line-height: 1.2;'>ULS Regionais<br><span style='font-size: 0.78rem; font-weight: 500; color: var(--text-muted);'>Relatório de Desempenho</span></h3>", unsafe_allow_html=True)
     
-df_raw_vals_plot = raw_plot_vals
-
-# --- Sort ULS columns based on selected indicator row ---
-if st.session_state.sort_ind and st.session_state.sort_ind in plot_df.index:
-    # Separate summary columns from ULS columns
-    summary_cols = ["SNS"]
-    if "Média Grupo" in plot_df.columns:
-        summary_cols.append("Média Grupo")
-    uls_cols = [c for c in plot_df.columns if c not in summary_cols]
-    
-    # Get values for sorting
-    row_vals = plot_df.loc[st.session_state.sort_ind, uls_cols]
-    if st.session_state.sort_state == 1:
-        sorted_uls = row_vals.sort_values(ascending=True).index.tolist()
-    elif st.session_state.sort_state == 2:
-        sorted_uls = row_vals.sort_values(ascending=False).index.tolist()
-    else:
-        sorted_uls = uls_cols
+    with col_ate:
+        ate_index = 0
+        if _url_end_month and _url_end_month in reversed_periods:
+            ate_index = reversed_periods.index(_url_end_month)
+        end_month = st.selectbox("ATÉ:", options=reversed_periods, index=ate_index, key="end_month_sel")
         
-    plot_df = plot_df[summary_cols + sorted_uls]
-    df_raw_vals_plot = df_raw_vals_plot[summary_cols + sorted_uls]
-
-# Rename index to show visual arrow indicator on the y-axis labels
-new_index = []
-for ind_name in plot_df.index:
-    if st.session_state.sort_ind == ind_name:
+    end_year = end_month[:4]
+    default_start = f"{end_year}-01"
+    if default_start not in all_periods:
+        default_start = all_periods[0]
+        
+    start_options = [p for p in all_periods if p <= end_month]
+    try:
+        start_index = start_options.index(default_start)
+    except ValueError:
+        start_index = 0
+    if _url_start_month and _url_start_month in start_options:
+        start_index = start_options.index(_url_start_month)
+        
+    with col_de:
+        start_month = st.selectbox("DE:", options=start_options, index=start_index, key="start_month_sel")
+        
+    persp_options = [
+        "Variação Homóloga (vs. Período Homólogo)",
+        "Índice Base 2024 (2024 = 100)",
+        "Posição Relativa face à Média do Grupo"
+    ]
+    persp_index = 0
+    if _url_persp_idx is not None:
+        try:
+            persp_index = int(_url_persp_idx)
+        except:
+            persp_index = 0
+            
+    with col_persp:
+        perspective = st.selectbox("PERSPETIVA:", options=persp_options, index=persp_index, key="persp_sel")
+        
+    with col_group:
+        available_grps = sorted(df_uls['Grupo'].dropna().unique().tolist())
+        if _url_groups:
+            default_grps = [g for g in _url_groups.split(",") if g in available_grps]
+            if not default_grps:
+                default_grps = available_grps
+        else:
+            default_grps = [g for g in available_grps if g == "Grupo B"] # standard group default
+            if not default_grps:
+                default_grps = available_grps
+        group_filter = st.multiselect("GRUPO ULS:", options=available_grps, default=default_grps, key="group_sel")
+        
+    # Calculations
+    df_var_hom, df_base_idx, df_grupo_pos, df_raw_vals = calculate_metrics(df_uls, df_ids, start_month, end_month)
+    df_uls_filtered = df_uls[df_uls['Grupo'].isin(group_filter)]
+    uls_to_show = sorted(df_uls_filtered['ULS'].unique().tolist())
+    
+    if "Variação Homóloga" in perspective:
+        base_df = df_var_hom.copy()
+        metric_title = "Variação Homóloga (%) ou Ponto Percentual (pp)"
+        val_suffix = "%"
+    elif "Índice Base 2024" in perspective:
+        base_df = df_base_idx.copy()
+        metric_title = "Índice Base 2024 (100 = Alinhado)"
+        val_suffix = ""
+    else:
+        base_df = df_grupo_pos.copy()
+        metric_title = "Posição face ao Grupo (100 = Média do Grupo)"
+        val_suffix = ""
+        
+    val_sns = base_df.mean(axis=1)
+    plot_df = base_df[uls_to_show].copy()
+    plot_df.insert(0, "SNS", val_sns)
+    if len(group_filter) == 1:
+        val_grp = plot_df.drop(columns=["SNS"]).mean(axis=1)
+        plot_df.insert(1, "Média Grupo", val_grp)
+        
+    raw_sns = df_raw_vals.mean(axis=1)
+    raw_plot_vals = df_raw_vals[uls_to_show].copy()
+    raw_plot_vals.insert(0, "SNS", raw_sns)
+    if len(group_filter) == 1:
+        raw_grp = raw_plot_vals.drop(columns=["SNS"]).mean(axis=1)
+        raw_plot_vals.insert(1, "Média Grupo", raw_grp)
+    df_raw_vals_plot = raw_plot_vals
+    
+    # Sort columns
+    if st.session_state.sort_ind and st.session_state.sort_ind in plot_df.index:
+        summary_cols = ["SNS"]
+        if "Média Grupo" in plot_df.columns:
+            summary_cols.append("Média Grupo")
+        uls_cols = [c for c in plot_df.columns if c not in summary_cols]
+        row_vals = plot_df.loc[st.session_state.sort_ind, uls_cols]
         if st.session_state.sort_state == 1:
-            new_index.append(f"▲ {ind_name}")
+            sorted_uls = row_vals.sort_values(ascending=True).index.tolist()
         elif st.session_state.sort_state == 2:
-            new_index.append(f"▼ {ind_name}")
+            sorted_uls = row_vals.sort_values(ascending=False).index.tolist()
+        else:
+            sorted_uls = uls_cols
+        plot_df = plot_df[summary_cols + sorted_uls]
+        df_raw_vals_plot = df_raw_vals_plot[summary_cols + sorted_uls]
+        
+    new_index = []
+    for ind_name in plot_df.index:
+        if st.session_state.sort_ind == ind_name:
+            if st.session_state.sort_state == 1:
+                new_index.append(f"▲ {ind_name}")
+            elif st.session_state.sort_state == 2:
+                new_index.append(f"▼ {ind_name}")
+            else:
+                new_index.append(ind_name)
         else:
             new_index.append(ind_name)
-    else:
-        new_index.append(ind_name)
-plot_df.index = new_index
-
-
-
-# Helper to interpolate color based on performance values
-def get_color_for_value(val, sentido, perspective):
-    if pd.isna(val):
-        return "transparent", "#71717a" # grey text for nan
-        
-    # Normalize values to [-1, 1] relative to logical limits
-    if "Variação" in perspective:
-        vmin, vmax = -15, 15
-        is_inverted = (sentido == "-")
-        norm_val = max(min(val, vmax), vmin) / vmax
-        if is_inverted:
-            norm_val = -norm_val
-    elif "Índice Base" in perspective:
-        vmin, vmax = 80, 120
-        is_inverted = (sentido == "-")
-        norm_val = (val - 100) / 20 # scale deviation
-        norm_val = max(min(norm_val, 1.0), -1.0)
-        if is_inverted:
-            norm_val = -norm_val
-    else: # Posição Relativa
-        vmin, vmax = 85, 115
-        is_inverted = (sentido == "-")
-        norm_val = (val - 100) / 15
-        norm_val = max(min(norm_val, 1.0), -1.0)
-        if is_inverted:
-            norm_val = -norm_val
-
-    # Interpolate colors: Red (#dc2626) <-> Zinc (#f4f4f5) <-> Green (#16a34a)
-    if norm_val < 0:
-        ratio = abs(norm_val)
-        r = int(244 - (244 - 220) * ratio)
-        g = int(244 - (244 - 38) * ratio)
-        b = int(245 - (245 - 38) * ratio)
-        text_color = "white" if ratio > 0.45 else ("#000000" if not IS_DARK else "#ffffff")
-    else:
-        ratio = norm_val
-        r = int(244 - (244 - 22) * ratio)
-        g = int(244 - (244 - 163) * ratio)
-        b = int(245 - (245 - 74) * ratio)
-        text_color = "white" if ratio > 0.45 else ("#000000" if not IS_DARK else "#ffffff")
-        
-    return f"rgb({r},{g},{b})", text_color
-
-# Map indicators to their properties
-ind_pct_map = {ind["name"]: ind["is_pct"] for ind in heatmap_indicators}
-ind_sentido_map = {ind["name"]: ind["sentido"] for ind in heatmap_indicators}
-# Build HTML Table Heatmap
-html_table = []
-html_table.append(f"""
-<style>
-.heatmap-table {{
-    border-collapse: collapse;
-    font-family: 'DM Sans', sans-serif;
-    color: {"#ffffff" if IS_DARK else "#000000"};
-    width: 100%;
-}}
-.heatmap-table th {{
-    font-size: 8.5px;
-    font-weight: bold;
-    text-align: center;
-    vertical-align: bottom;
-    border-bottom: 2px solid {"#3f3f46" if IS_DARK else "#e4e4e7"};
-    padding: 4px 4px 8px 4px;
-    min-width: 20px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: {"#09090b" if IS_DARK else "#ffffff"};
-}}
-.heatmap-table th .hdr-label {{
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    word-break: break-word;
-    line-height: 1.3;
-    max-height: 2.6em;
-}}
-.heatmap-table td.row-lbl {{
-    font-size: 9.5px;
-    font-weight: bold;
-    text-align: right;
-    padding: 3px 8px;
-    border-right: 2px solid {"#3f3f46" if IS_DARK else "#e4e4e7"};
-    min-width: 165px;
-    max-width: 165px;
-    width: 165px;
-    white-space: nowrap;
-}}
-.heatmap-table td.cell {{
-    text-align: center;
-    font-weight: bold;
-    font-size: 8px;
-    min-width: 20px;
-    height: 20px;
-    border: 1px solid {"#27272a" if IS_DARK else "#ffffff"};
-    cursor: help;
-}}
-</style>
-<div style="overflow-x: auto; overflow-y: auto; max-height: 82vh; width: 100%; padding-bottom: 10px;">
-<table class="heatmap-table">
-<thead>
-<tr style="vertical-align: bottom;">
-    <th style="text-align: right; font-size: 10px; padding-bottom: 8px; padding-right: 8px; border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; position: sticky; top: 0; z-index: 11; background-color: {'#09090b' if IS_DARK else '#ffffff'};">Indicador</th>
-""")
-
-for col_name in plot_df.columns:
-    short_col = col_name.replace("ULS ", "")
-    html_table.append(f"""
-    <th><div class="hdr-label">{short_col}</div></th>
-    """)
-html_table.append('</tr></thead><tbody>')
-
-for ind_name in plot_df.index:
-    clean_ind = ind_name.replace("▲ ", "").replace("▼ ", "").strip()
-    ind_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
-
-    # Encode current filter state so it survives the page reload triggered by clicking a sort link
-    persp_idx  = persp_options.index(perspective)
-    grps_str   = ",".join(group_filter)
-    filter_params = f"&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}"
-
-    # Visual cues for active sort
-    arrow = ""
-    color_link = "#ffffff" if IS_DARK else "#000000"
-    if st.session_state.sort_ind == clean_ind:
-        if st.session_state.sort_state == 1:
-            arrow = "▲ "
-            next_href = f"?sort={ind_safe}&state=2{filter_params}"
-            color_link = "#22c55e"
-        elif st.session_state.sort_state == 2:
-            arrow = "▼ "
-            next_href = f"?{filter_params.lstrip('&')}"  # reset sort, keep filters
-            color_link = "#ef4444"
-    else:
-        next_href = f"?sort={ind_safe}&state=1{filter_params}"
-        
-    html_table.append('<tr style="height: 20px;">')
-    html_table.append(f"""
-    <td class="row-lbl">
-        <a href="{next_href}" target="_self" style="text-decoration: none; color: {color_link}; transition: color 0.15s;">
-            {arrow}{clean_ind}
-        </a>
-    </td>
-    """)
+    plot_df.index = new_index
     
-    is_pct = ind_pct_map.get(clean_ind, False)
-    is_pp = is_pct or "%" in clean_ind or "pp" in clean_ind
-    sentido = ind_sentido_map.get(clean_ind, "+")
-    
-    for uls_name in plot_df.columns:
-        val = plot_df.at[ind_name, uls_name]
-        raw_val = df_raw_vals_plot.at[clean_ind, uls_name]
-        
-        # Color scale calculation
-        bg_color, text_color = get_color_for_value(val, sentido, perspective)
-        
-        # Formatted val
+    # Helper to interpolate color based on performance values
+    def get_color_for_value(val, sentido, perspective):
         if pd.isna(val):
-            val_str = "-"
+            return "transparent", "#71717a"
+        if "Variação" in perspective:
+            norm_val = val / 15.0
+            norm_val = max(min(norm_val, 1.0), -1.0)
+            if sentido == "-":
+                norm_val = -norm_val
+        elif "Índice Base" in perspective:
+            norm_val = (val - 100) / 20
+            norm_val = max(min(norm_val, 1.0), -1.0)
+            if sentido == "-":
+                norm_val = -norm_val
         else:
-            val_format = f"{val:+.1f}" if "Variação" in perspective else f"{val:.1f}"
-            suffix = " pp" if (is_pp and "Variação" in perspective) else val_suffix
-            val_str = f"{val_format}{suffix}"
-            
-        # Tooltip text
-        if pd.isna(raw_val):
-            raw_str = "Sem dados"
+            norm_val = (val - 100) / 15
+            norm_val = max(min(norm_val, 1.0), -1.0)
+            if sentido == "-":
+                norm_val = -norm_val
+        if norm_val < 0:
+            ratio = abs(norm_val)
+            r = int(244 - (244 - 220) * ratio)
+            g = int(244 - (244 - 38) * ratio)
+            b = int(245 - (245 - 38) * ratio)
+            text_color = "white" if ratio > 0.45 else ("#000000" if not IS_DARK else "#ffffff")
         else:
-            if "Dívida" in clean_ind or "EBITDA" in clean_ind:
-                raw_str = f"{(raw_val/1e6):.2f} M€"
-            elif is_pp:
-                raw_str = f"{raw_val:.1f}%"
-            else:
-                raw_str = f"{raw_val:,.0f}"
-                
-        tooltip = f"{uls_name} - {clean_ind}\nCalculado: {val_str}\nValor Real: {raw_str}"
+            ratio = norm_val
+            r = int(244 - (244 - 22) * ratio)
+            g = int(244 - (244 - 163) * ratio)
+            b = int(245 - (245 - 74) * ratio)
+            text_color = "white" if ratio > 0.45 else ("#000000" if not IS_DARK else "#ffffff")
+        return f"rgb({r},{g},{b})", text_color
         
+    ind_pct_map = {ind["name"]: ind["is_pct"] for ind in heatmap_indicators}
+    ind_sentido_map = {ind["name"]: ind["sentido"] for ind in heatmap_indicators}
+    
+    html_table = []
+    html_table.append(f"""
+    <div style="overflow-x: auto; overflow-y: auto; max-height: 82vh; width: 100%; padding-bottom: 10px;">
+    <table class="heatmap-table">
+    <thead>
+    <tr style="vertical-align: bottom;">
+        <th style="text-align: right; font-size: 10px; padding-bottom: 8px; padding-right: 8px; border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; position: sticky; top: 0; z-index: 11; background-color: {'#09090b' if IS_DARK else '#ffffff'}; font-weight: 700;">Indicador</th>
+    """)
+    for col_name in plot_df.columns:
+        short_col = col_name.replace("ULS ", "")
+        html_table.append(f'<th><div class="hdr-label">{short_col}</div></th>')
+    html_table.append('</tr></thead><tbody>')
+    
+    for ind_name in plot_df.index:
+        clean_ind = ind_name.replace("▲ ", "").replace("▼ ", "").strip()
+        ind_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
+        persp_idx  = persp_options.index(perspective)
+        grps_str   = ",".join(group_filter)
+        filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}"
+        arrow = ""
+        color_link = "#ffffff" if IS_DARK else "#000000"
+        if st.session_state.sort_ind == clean_ind:
+            if st.session_state.sort_state == 1:
+                arrow = "▲ "
+                next_href = f"?sort={ind_safe}&state=2{filter_params}"
+                color_link = "#22c55e"
+            elif st.session_state.sort_state == 2:
+                arrow = "▼ "
+                next_href = f"?{filter_params.lstrip('&')}"
+                color_link = "#ef4444"
+        else:
+            next_href = f"?sort={ind_safe}&state=1{filter_params}"
+            
+        html_table.append('<tr style="height: 20px;">')
         html_table.append(f"""
-        <td title="{tooltip}" style="background-color: {bg_color}; color: {text_color};" class="cell">
-            {val_str}
+        <td class="row-lbl" style="border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; font-weight: 700;">
+            <a href="{next_href}" target="_self" style="color: {color_link}; text-decoration: none; display: block; width: 100%;">
+                {arrow}{clean_ind}
+            </a>
         </td>
         """)
-    html_table.append('</tr>')
+        
+        is_pct = ind_pct_map.get(clean_ind, False)
+        sentido = ind_sentido_map.get(clean_ind, "+")
+        
+        for col_name in plot_df.columns:
+            val = plot_df.at[ind_name, col_name]
+            raw_val = df_raw_vals_plot.at[clean_ind, col_name]
+            bg_color, text_color = get_color_for_value(val, sentido, perspective)
+            is_pp = ("%" in clean_ind or "Taxa" in clean_ind or "Proporção" in clean_ind or "Percentagem" in clean_ind)
+            if pd.isna(val):
+                val_str = "-"
+            else:
+                val_format = f"{val:+.1f}" if "Variação" in perspective else f"{val:.1f}"
+                suffix = " pp" if (is_pp and "Variação" in perspective) else val_suffix
+                val_str = f"{val_format}{suffix}"
+            if pd.isna(raw_val):
+                raw_str = "Sem dados"
+            else:
+                if "Dívida" in clean_ind or "EBITDA" in clean_ind:
+                    raw_str = f"{(raw_val/1e6):.2f} M€"
+                elif is_pp:
+                    raw_str = f"{raw_val:.1f}%"
+                else:
+                    raw_str = f"{raw_val:,.0f}"
+            tooltip = f"{col_name} - {clean_ind}\nCalculado: {val_str}\nValor Real: {raw_str}"
+            html_table.append(f'<td title="{tooltip}" style="background-color: {bg_color}; color: {text_color};" class="cell">{val_str}</td>')
+        html_table.append('</tr>')
+        
+    html_table.append('</tbody></table></div>')
+    st.html("".join(html_table))
+    
+    st.markdown("""
+    > **Dica de Leitura:**
+    > * **Tons de Verde** representam melhorias de desempenho (aumento de indicadores positivos como consultas/cirurgias ou diminuição de indicadores negativos como urgências/demora média/dívida).
+    > * **Tons de Vermelho** indicam evolução desfavorável ou desvios desfavoráveis face ao período homólogo ou ano base.
+    """)
 
-html_table.append('</tbody></table></div>')
-table_block = "".join(html_table)
+# ----------------------------------------------------
+# PAGE 2: PERFIL INSTITUCIONAL (NEW)
+# ----------------------------------------------------
+else:
+    # 4 Thematic columns configuration with their respective indicators
+    thematic_categories = {
+        "Acesso": {
+            "title": "Acesso", "icon": "📁",
+            "indicators": ["% 1ªs Cons. Tempo Adeq.", "% LIC TMRG", "Taxa Ocup. Intern.", "Acesso Cons. CSP", "Consultas CSP", "Cont. Enfermagem CSP", "Cons. Hospitalares", "1ªs Consultas", "Urgências", "Hemodiálise"]
+        },
+        "Qualidade": {
+            "title": "Qualidade", "icon": "⭐",
+            "indicators": ["Mortalidade AVC", "% Frat. Anca 48h", "% Cesarianas", "Consumo Antibióticos", "Mortalidade Hosp.", "Controlo Diabetes", "Controlo Hipertensão", "Vig. Recém-Nascidos"]
+        },
+        "Sustentabilidade": {
+            "title": "Sustentabilidade e Eficiência", "icon": "📊",
+            "indicators": ["Demora Pré-Cirurgia", "Cir. Ambulatório", "Demora Média", "EBITDA (M€)", "Dívida Vencida (M€)", "% Gastos TE/Suplementares", "Dias de Ausência"]
+        },
+        "Operacional": {
+            "title": "Operacional e Recursos", "icon": "⚙️",
+            "indicators": ["Cir. Programadas", "Doentes Saídos", "Nº Partos", "% Utentes c/ MdF", "Total RH", "Trab. por Vinculação", "Horas Trab. Extra", "Ausências Formação"]
+        }
+    }
+    
+    indicator_areas = {
+        "Cons. Hospitalares": "Hospitalar", "1ªs Consultas": "Hospitalar", "Acesso Cons. CSP": "Cuidados Primários", "Total Urgência (Link)": "Urgência",
+        "Doentes Saídos": "Hospitalar", "Demora Média": "Hospitalar", "% 1ªs Cons. Tempo Adeq.": "Hospitalar", "Cir. Programadas": "Hospitalar",
+        "Nº Partos": "Obstetrícia", "% Cesarianas": "Obstetrícia", "Total RH": "Recursos Humanos", "% Utentes c/ MdF": "Cuidados Primários",
+        "Consultas CSP": "Cuidados Primários", "Urgências": "Urgência", "Dívida Vencida (M€)": "Financeiro", "% Frat. Anca 48h": "Ortopedia",
+        "% LIC TMRG": "Hospitalar", "Cont. Enfermagem CSP": "Cuidados Primários", "EBITDA (M€)": "Financeiro", "% Gastos TE/Suplementares": "Financeiro",
+        "Trab. por Vinculação": "Recursos Humanos", "Dias de Ausência": "Recursos Humanos", "Horas Trab. Extra": "Recursos Humanos",
+        "Ausências Formação": "Recursos Humanos", "Taxa Ocup. Intern.": "Hospitalar", "Demora Pré-Cirurgia": "Hospitalar", "Hemodiálise": "Nefrologia",
+        "Cir. Ambulatório": "Hospitalar", "Mortalidade AVC": "Cardiovascular", "Controlo Diabetes": "Cuidados Primários",
+        "Controlo Hipertensão": "Cuidados Primários", "Vig. Recém-Nascidos": "Pediatria", "Consumo Antibióticos": "Infeciologia", "Mortalidade Hosp.": "Geral"
+    }
 
-# Render native HTML table
-st.html(table_block)
+    # Top Controls for Profile Page
+    c_uls, c_period, c_pmode = st.columns([1.5, 0.8, 1.2])
+    
+    uls_list = sorted(df_uls['ULS'].dropna().unique().tolist())
+    uls_index = uls_list.index(st.session_state.selected_uls) if st.session_state.selected_uls in uls_list else 0
+    
+    with c_uls:
+        sel_uls = st.selectbox("INSTITUIÇÃO (ULS):", options=uls_list, index=uls_index, key="sel_uls_box")
+    
+    with c_pmode:
+        sel_pmode = st.selectbox("VISUALIZAÇÃO:", options=["Indicadores da ULS", "Comparação do Grupo"], index=0 if st.session_state.profile_mode == "indicadores" else 1, key="sel_pmode_box")
+        new_pmode = "indicadores" if "Indicadores" in sel_pmode else "comparacao"
+        
+    with c_period:
+        sel_period = st.selectbox("PERÍODO:", options=reversed_periods, index=0, key="sel_period_box")
 
+    # Get financing group of selected ULS
+    uls_grp = df_uls[df_uls['ULS'] == sel_uls]['Grupo'].dropna().values[0]
+    peer_uls = sorted(df_uls[df_uls['Grupo'] == uls_grp]['ULS'].dropna().unique().tolist())
+    
+    # Run instant calculations for target period only
+    df_var_hom_p, df_base_idx_p, df_grupo_pos_p, df_raw_vals_p = calculate_metrics(df_uls, df_ids, sel_period, sel_period)
+    
+    # Calculate group and national averages for that period
+    raw_national_avg = df_raw_vals_p.mean(axis=1)
+    raw_group_avg = df_raw_vals_p[peer_uls].mean(axis=1)
+    
+    # Display header of institutional profile
+    st.markdown(f"""
+    <div style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1.2rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow);">
+        <div>
+            <h4 style="margin: 0; font-size: 1.15rem; font-weight: 700;">ULS de {sel_uls}</h4>
+            <div style="font-size: 0.74rem; color: var(--text-muted); font-weight: 500; margin-top: 2px;">
+                Grupo Homogéneo: {uls_grp} | Período: {sel_period}
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <span class="badge badge-blue">Grupo {uls_grp}</span>
+            <span class="badge badge-neutral">34 Indicadores</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Render the 4 columns grid
+    profile_columns_html = []
+    profile_columns_html.append('<div class="profile-grid">')
+    
+    for theme_key, theme_data in thematic_categories.items():
+        profile_columns_html.append(f"""
+        <div class="profile-card">
+            <div class="profile-card-header">
+                <span class="profile-card-header-icon">{theme_data["icon"]}</span>
+                <span>{theme_data["title"]}</span>
+            </div>
+            <div class="profile-ind-list">
+        """)
+        
+        for ind_name in theme_data["indicators"]:
+            if ind_name not in df_raw_vals_p.index:
+                continue
+            
+            val_raw = df_raw_vals_p.at[ind_name, sel_uls]
+            val_grp = raw_group_avg.get(ind_name, np.nan)
+            val_nat = raw_national_avg.get(ind_name, np.nan)
+            
+            # Formatting
+            is_pct = ind_name in ind_pct_map and ind_pct_map[ind_name]
+            is_pp = ("%" in ind_name or "Taxa" in ind_name or "Proporção" in ind_name or "Percentagem" in ind_name)
+            
+            if pd.isna(val_raw):
+                val_str = "-"
+            else:
+                if "Dívida" in ind_name or "EBITDA" in ind_name:
+                    val_str = f"{(val_raw/1e6):.1f}M€"
+                elif is_pct or is_pp:
+                    val_str = f"{val_raw:.1f}%"
+                else:
+                    val_str = f"{val_raw:,.0f}"
+                    
+            # Compute deviations
+            sentido = ind_sentido_map.get(ind_name, "+")
+            
+            # Dev Group
+            if pd.notna(val_raw) and pd.notna(val_grp) and val_grp > 0:
+                dev_g = ((val_raw - val_grp) / val_grp) * 100
+                if sentido == "-":
+                    dev_g = -dev_g
+                arrow_g = "▲" if dev_g >= 0 else "▼"
+                color_g = "var(--green)" if dev_g >= 0 else "var(--red)"
+                dev_g_str = f'<span style="color: {color_g}; font-weight: 700;">G: {arrow_g} {abs(dev_g):.1f}%</span>'
+            else:
+                dev_g_str = '<span style="color: var(--text-dim);">G: -</span>'
+                
+            # Dev National
+            if pd.notna(val_raw) and pd.notna(val_nat) and val_nat > 0:
+                dev_n = ((val_raw - val_nat) / val_nat) * 100
+                if sentido == "-":
+                    dev_n = -dev_n
+                arrow_n = "▲" if dev_n >= 0 else "▼"
+                color_n = "var(--green)" if dev_n >= 0 else "var(--red)"
+                dev_n_str = f'<span style="color: {color_n}; font-weight: 700;">N: {arrow_n} {abs(dev_n):.1f}%</span>'
+            else:
+                dev_n_str = '<span style="color: var(--text-dim);">N: -</span>'
+                
+            is_selected = (st.session_state.selected_ind == ind_name)
+            selected_class = "profile-ind-item-selected" if is_selected else ""
+            
+            ind_url_safe = ind_name.replace(" ", "_").replace("%", "pct").replace("/", "slash")
+            uls_url_safe = sel_uls.replace(" ", "_").replace("/", "slash")
+            item_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={new_pmode}"
+            
+            area = indicator_areas.get(ind_name, "Geral")
+            
+            profile_columns_html.append(f"""
+            <a href="{item_href}" target="_self" class="profile-ind-item {selected_class}">
+                <div class="profile-ind-name-row">
+                    <span class="profile-ind-name">{ind_name}</span>
+                    <span class="profile-ind-val">{val_str}</span>
+                </div>
+                <div class="profile-ind-sub-row">
+                    <span>Área: {area}</span>
+                    <div class="profile-ind-devs">
+                        {dev_g_str} {dev_n_str}
+                    </div>
+                </div>
+            </a>
+            """)
+            
+        profile_columns_html.append("""
+            </div>
+        </div>
+        """)
+        
+    profile_columns_html.append('</div>')
+    st.markdown("".join(profile_columns_html), unsafe_allow_html=True)
+    
+    # ----------------------------------------------------
+    # PROFILE BOTTOM DETAIL & HISTORICAL CHART
+    # ----------------------------------------------------
+    st.subheader(f"{st.session_state.selected_ind} - Detalhe e Histórico Temporal")
+    
+    # KPIs calculations
+    current_val = df_raw_vals_p.at[st.session_state.selected_ind, sel_uls]
+    grp_avg_val = raw_group_avg.get(st.session_state.selected_ind, np.nan)
+    nat_avg_val = raw_national_avg.get(st.session_state.selected_ind, np.nan)
+    
+    sentido = ind_sentido_map.get(st.session_state.selected_ind, "+")
+    is_pct = st.session_state.selected_ind in ind_pct_map and ind_pct_map[st.session_state.selected_ind]
+    is_pp = ("%" in st.session_state.selected_ind or "Taxa" in st.session_state.selected_ind or "Proporção" in st.session_state.selected_ind or "Percentagem" in st.session_state.selected_ind)
+    
+    def format_kpi(v):
+        if pd.isna(v): return "-"
+        if "Dívida" in st.session_state.selected_ind or "EBITDA" in st.session_state.selected_ind:
+            return f"{(v/1e6):,.2f} M€"
+        elif is_pct or is_pp:
+            return f"{v:.1f}%"
+        return f"{v:,.0f}"
+        
+    kpi_uls_str = format_kpi(current_val)
+    kpi_grp_str = format_kpi(grp_avg_val)
+    kpi_nat_str = format_kpi(nat_avg_val)
+    
+    # Compute deviations for KPIs
+    dev_g_kpi = ""
+    if pd.notna(current_val) and pd.notna(grp_avg_val) and grp_avg_val > 0:
+        dev_val = ((current_val - grp_avg_val) / grp_avg_val) * 100
+        if sentido == "-": dev_val = -dev_val
+        color = "var(--green)" if dev_val >= 0 else "var(--red)"
+        arrow = "▲" if dev_val >= 0 else "▼"
+        dev_g_kpi = f'<span style="color: {color}; font-size: 0.72rem; font-weight: 700; margin-left: 8px;">G: {arrow} {abs(dev_val):.1f}%</span>'
+        
+    dev_n_kpi = ""
+    if pd.notna(current_val) and pd.notna(nat_avg_val) and nat_avg_val > 0:
+        dev_val = ((current_val - nat_avg_val) / nat_avg_val) * 100
+        if sentido == "-": dev_val = -dev_val
+        color = "var(--green)" if dev_val >= 0 else "var(--red)"
+        arrow = "▲" if dev_val >= 0 else "▼"
+        dev_n_kpi = f'<span style="color: {color}; font-size: 0.72rem; font-weight: 700; margin-left: 8px;">N: {arrow} {abs(dev_val):.1f}%</span>'
+
+    st.markdown(f"""
+    <div class="profile-kpis-grid">
+        <div class="profile-kpi-card">
+            <div>
+                <div class="profile-kpi-lbl">ULS - {sel_period}</div>
+                <div class="profile-kpi-val">{kpi_uls_str}</div>
+            </div>
+        </div>
+        <div class="profile-kpi-card">
+            <div>
+                <div class="profile-kpi-lbl">Média Grupo (G)</div>
+                <div class="profile-kpi-val">{kpi_grp_str}</div>
+            </div>
+            <div>{dev_g_kpi}</div>
+        </div>
+        <div class="profile-kpi-card">
+            <div>
+                <div class="profile-kpi-lbl">Média Nacional (N)</div>
+                <div class="profile-kpi-val">{kpi_nat_str}</div>
+            </div>
+            <div>{dev_n_kpi}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 4. Generate Plotly line chart comparing ULS vs Group vs SNS over time
+    db_path = "sns_indicadores.db"
+    conn = sqlite3.connect(db_path)
+    
+    # Query complete historical raw values for selected indicator
+    active_ind_meta = [ind for ind in heatmap_indicators if ind["name"] == st.session_state.selected_ind][0]
+    
+    # Handle indicators using sum_cols or ratio_cols
+    cols_to_fetch = []
+    if active_ind_meta.get("col"):
+        cols_to_fetch.append(active_ind_meta["col"])
+    if active_ind_meta.get("sum_cols"):
+        cols_to_fetch.extend(active_ind_meta["sum_cols"])
+    if active_ind_meta.get("ratio_cols"):
+        cols_to_fetch.extend(active_ind_meta["ratio_cols"])
+        
+    cols_fetch_str = ", ".join(f'"{c}"' for c in cols_to_fetch)
+    query_hist = f"SELECT periodo, mapped_uls, {cols_fetch_str} FROM indicadores_sns WHERE _fonte = ?"
+    
+    # Source matching
+    source_to_query = None
+    for k, v in DATASET_MAPPING.items():
+        # Match indicator source
+        pass
+        
+    df_hist_raw = pd.read_sql(
+        f"SELECT periodo, mapped_uls, {cols_fetch_str} FROM indicadores_sns WHERE periodo >= '2024-01' ORDER BY periodo", conn
+    )
+    conn.close()
+    
+    # Perform same calculation over time
+    historical_periods = sorted(df_hist_raw['periodo'].dropna().unique().tolist())
+    
+    uls_timeline = []
+    grp_timeline = []
+    sns_timeline = []
+    
+    for p in historical_periods:
+        df_p_data = df_hist_raw[df_hist_raw['periodo'] == p]
+        if df_p_data.empty: continue
+        
+        # Calculate for each ULS in this period
+        p_vals = {}
+        for u in uls_list:
+            u_df = df_p_data[df_p_data['mapped_uls'] == u]
+            if u_df.empty: continue
+            
+            if active_ind_meta.get("col"):
+                p_vals[u] = u_df[active_ind_meta["col"]].dropna().mean()
+            elif active_ind_meta.get("sum_cols"):
+                p_vals[u] = u_df[active_ind_meta["sum_cols"]].dropna().sum(axis=1).mean()
+            elif active_ind_meta.get("ratio_cols"):
+                num = u_df[active_ind_meta["ratio_cols"][0]].dropna().sum()
+                den = u_df[active_ind_meta["ratio_cols"][1]].dropna().sum()
+                p_vals[u] = (num / den * 100) if den > 0 else np.nan
+                
+        # Fill timeline points
+        u_val = p_vals.get(sel_uls, np.nan)
+        uls_timeline.append({"Periodo": p, "Valor": u_val, "Tipo": f"ULS {sel_uls}"})
+        
+        g_vals = [p_vals[u] for u in peer_uls if u in p_vals and pd.notna(p_vals[u])]
+        g_val = np.mean(g_vals) if g_vals else np.nan
+        grp_timeline.append({"Periodo": p, "Valor": g_val, "Tipo": f"Média Grupo {uls_grp}"})
+        
+        n_vals = [p_vals[u] for u in uls_list if u in p_vals and pd.notna(p_vals[u])]
+        n_val = np.mean(n_vals) if n_vals else np.nan
+        sns_timeline.append({"Periodo": p, "Valor": n_val, "Tipo": "Média SNS"})
+        
+    df_chart = pd.DataFrame(uls_timeline + grp_timeline + sns_timeline)
+    
+    # Import Plotly Graph Objects to build the custom chart with markers
+    import plotly.graph_objects as go
+    
+    fig = go.Figure()
+    
+    # ULS Timeline (Thick blue line with markers)
+    fig.add_trace(go.Scatter(
+        x=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Periodo'],
+        y=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Valor'],
+        name=f"ULS {sel_uls}",
+        line=dict(color="#2563eb", width=3),
+        mode="lines+markers",
+        marker=dict(size=6, symbol="circle")
+    ))
+    
+    # Group Timeline (Yellow line)
+    fig.add_trace(go.Scatter(
+        x=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Periodo'],
+        y=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Valor'],
+        name=f"Média Grupo {uls_grp}",
+        line=dict(color="#f59e0b", width=2, dash="dash"),
+        mode="lines"
+    ))
+    
+    # SNS Timeline (Grey line)
+    fig.add_trace(go.Scatter(
+        x=df_chart[df_chart['Tipo'] == "Média SNS"]['Periodo'],
+        y=df_chart[df_chart['Tipo'] == "Média SNS"]['Valor'],
+        name="Média Nacional (SNS)",
+        line=dict(color="#71717a", width=2, dash="dot"),
+        mode="lines"
+    ))
+    
+    # Apply theme styling
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=11),
+        margin=dict(l=40, r=20, t=10, b=40),
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis=dict(
+            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+            zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+            tickangle=-45
+        ),
+        yaxis=dict(
+            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+            zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+        )
+    )
+    
+    st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.markdown('</div>', unsafe_allow_html=True)
+    
 st.markdown("</div>", unsafe_allow_html=True)
 
 
