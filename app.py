@@ -812,7 +812,7 @@ if page == "matriz":
             if not default_grps:
                 default_grps = available_grps
         else:
-            default_grps = [g for g in available_grps if g == "Grupo B"] # standard group default
+            default_grps = [g for g in available_grps if g == "Grupo C"] # standard group default
             if not default_grps:
                 default_grps = available_grps
         group_filter = st.multiselect("GRUPO ULS:", options=available_grps, default=default_grps, key="group_sel")
