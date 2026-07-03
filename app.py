@@ -226,20 +226,16 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"], .main, .b
     vertical-align: bottom;
     border-bottom: 2px solid var(--border);
     padding: 4px 4px 8px 4px;
-    min-width: 20px;
+    min-width: 48px;
     position: sticky;
     top: 0;
     z-index: 10;
     background-color: var(--bg);
 }}
 .heatmap-table th .hdr-label {{
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
     word-break: break-word;
-    line-height: 1.3;
-    max-height: 2.6em;
+    line-height: 1.2;
+    padding: 0 2px;
 }}
 .heatmap-table td.row-lbl {{
     font-size: 9.5px;
@@ -256,7 +252,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"], .main, .b
     text-align: center;
     font-weight: bold;
     font-size: 8px;
-    min-width: 20px;
+    min-width: 48px;
     height: 20px;
     border: 1px solid var(--border-subtle);
     cursor: help;
