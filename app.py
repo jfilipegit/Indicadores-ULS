@@ -1105,20 +1105,33 @@ else:
             # Formatting
             is_pct = ind_name in ind_pct_map and ind_pct_map[ind_name]
             is_pp = ("%" in ind_name or "Taxa" in ind_name or "Proporção" in ind_name or "Percentagem" in ind_name)
+            sentido = ind_sentido_map.get(ind_name, "+")
             
+            val_color_style = ""
             if pd.isna(val_raw):
                 val_str = "-"
             else:
-                if "Dívida" in ind_name or "EBITDA" in ind_name:
-                    val_str = f"{(val_raw/1e6):.1f}M€"
-                elif is_pct or is_pp:
-                    val_str = f"{val_raw:.1f}%"
+                if new_pmode == "comparacao":
+                    if pd.notna(val_grp) and val_grp > 0:
+                        dev_val = ((val_raw - val_grp) / val_grp) * 100
+                        # Color coding based on whether the deviation is favorable or not
+                        is_fav = dev_val >= 0 if sentido == "+" else dev_val <= 0
+                        color = "var(--green)" if is_fav else "var(--red)"
+                        val_color_style = f' style="color: {color}; font-weight: 700;"'
+                        
+                        sign = "+" if dev_val >= 0 else ""
+                        val_str = f"{sign}{dev_val:.1f}%"
+                    else:
+                        val_str = "-"
                 else:
-                    val_str = f"{val_raw:,.0f}"
-                    
+                    if "Dívida" in ind_name or "EBITDA" in ind_name:
+                        val_str = f"{(val_raw/1e6):.1f}M€"
+                    elif is_pct or is_pp:
+                        val_str = f"{val_raw:.1f}%"
+                    else:
+                        val_str = f"{val_raw:,.0f}"
+                        
             # Compute deviations
-            sentido = ind_sentido_map.get(ind_name, "+")
-            
             # Dev Group
             if pd.notna(val_raw) and pd.notna(val_grp) and val_grp > 0:
                 dev_g = ((val_raw - val_grp) / val_grp) * 100
@@ -1154,7 +1167,7 @@ else:
             <a href="{item_href}" target="_self" class="profile-ind-item {selected_class}">
                 <div class="profile-ind-name-row">
                     <span class="profile-ind-name">{ind_name}</span>
-                    <span class="profile-ind-val">{val_str}</span>
+                    <span class="profile-ind-val"{val_color_style}>{val_str}</span>
                 </div>
                 <div class="profile-ind-sub-row">
                     <span>Área: {area}</span>
