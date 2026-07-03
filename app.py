@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 import unicodedata
 import os
 import sqlite3
+
 
 # 1. Page Configuration
 st.set_page_config(
