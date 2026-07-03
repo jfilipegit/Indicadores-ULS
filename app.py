@@ -30,7 +30,7 @@ selected_ind = params.get("ind", "% 1ªs Cons. Tempo Adeq.").replace("_", " ").r
 st.session_state.selected_ind = selected_ind
 
 # Selected ULS for Profile Page (defaults to 'Baixo Mondego' or first available)
-selected_uls = params.get("uls", "Baixo Mondego").replace("_", " ").replace("slash", "/")
+selected_uls = params.get("uls", "ULS Entre Douro e Vouga").replace("_", " ").replace("slash", "/")
 st.session_state.selected_uls = selected_uls
 
 # Toggle for Profile Page comparison mode ('indicadores' or 'comparacao')
@@ -1052,7 +1052,7 @@ else:
     st.markdown(f"""
     <div style="background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.8rem 1.2rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow);">
         <div>
-            <h4 style="margin: 0; font-size: 1.15rem; font-weight: 700;">ULS de {sel_uls}</h4>
+            <h4 style="margin: 0; font-size: 1.15rem; font-weight: 700;">{sel_uls}</h4>
             <div style="font-size: 0.74rem; color: var(--text-muted); font-weight: 500; margin-top: 2px;">
                 Grupo Homogéneo: {uls_grp} | Período: {sel_period}
             </div>
