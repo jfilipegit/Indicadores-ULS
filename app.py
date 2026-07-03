@@ -255,7 +255,7 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"], .main, .b
     min-width: 48px;
     height: 20px;
     border: 1px solid var(--border-subtle);
-    cursor: help;
+    cursor: pointer;
 }}
 
 
@@ -992,7 +992,20 @@ if page == "matriz":
                 else:
                     raw_str = f"{raw_val:,.0f}"
             tooltip = f"{col_name} - {clean_ind}\nCalculado: {val_str}\nValor Real: {raw_str}"
-            html_table.append(f'<td title="{tooltip}" style="background-color: {bg_color}; color: {text_color};" class="cell">{val_str}</td>')
+            # Target ULS determination for click destination
+            uls_target = col_name
+            if col_name in ["SNS", "Média Grupo"]:
+                # If clicking average columns, redirect to the first real ULS column in plot_df
+                real_uls_cols = [c for c in plot_df.columns if c not in ["SNS", "Média Grupo"]]
+                uls_target = real_uls_cols[0] if real_uls_cols else sel_uls
+                
+            uls_url_safe = uls_target.replace(" ", "_").replace("/", "slash")
+            ind_url_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
+            cell_pmode = "comparacao" if "Média" in perspective or "Grupo" in perspective else "indicadores"
+            cell_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={cell_pmode}&end={end_month}"
+            
+            cell_link = f'<a href="{cell_href}" target="_self" style="color: {text_color}; text-decoration: none; display: block; width: 100%; height: 100%; line-height: 20px; text-align: center;">{val_str}</a>'
+            html_table.append(f'<td title="{tooltip}" style="background-color: {bg_color}; padding: 0;" class="cell">{cell_link}</td>')
         html_table.append('</tr>')
         
     html_table.append('</tbody></table></div>')
