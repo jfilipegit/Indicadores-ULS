@@ -1245,13 +1245,12 @@ else:
     if active_ind_meta.get("ratio_cols"):
         cols_to_fetch.extend(active_ind_meta["ratio_cols"])
         
+    cols_to_fetch = list(dict.fromkeys(cols_to_fetch))
     cols_fetch_str = ", ".join(f'"{c}"' for c in cols_to_fetch)
-    query_hist = f"SELECT periodo, mapped_uls, {cols_fetch_str} FROM indicadores_sns WHERE _fonte = ?"
     
-    # Source matching - direct query database table
-        
+    # Source matching - direct query database table including _fonte column
     df_hist_raw = pd.read_sql(
-        f"SELECT periodo, mapped_uls, {cols_fetch_str} FROM indicadores_sns WHERE periodo >= '2024-01' ORDER BY periodo", conn
+        f"SELECT periodo, mapped_uls, _fonte, {cols_fetch_str} FROM indicadores_sns WHERE periodo >= '2024-01' ORDER BY periodo", conn
     )
     conn.close()
     
@@ -1261,6 +1260,13 @@ else:
     uls_timeline = []
     grp_timeline = []
     sns_timeline = []
+    
+    # Pre-calculate mapping keys
+    src_filter = active_ind_meta.get("source_filter")
+    ind_type = active_ind_meta["type"]
+    ratio_cols = active_ind_meta.get("ratio_cols")
+    sum_cols = active_ind_meta.get("sum_cols")
+    col = active_ind_meta.get("col")
     
     for p in historical_periods:
         df_p_data = df_hist_raw[df_hist_raw['periodo'] == p]
@@ -1272,15 +1278,47 @@ else:
             u_df = df_p_data[df_p_data['mapped_uls'] == u]
             if u_df.empty: continue
             
-            if active_ind_meta.get("col"):
-                p_vals[u] = u_df[active_ind_meta["col"]].dropna().mean()
-            elif active_ind_meta.get("sum_cols"):
-                p_vals[u] = u_df[active_ind_meta["sum_cols"]].dropna().sum(axis=1).mean()
-            elif active_ind_meta.get("ratio_cols"):
-                num = u_df[active_ind_meta["ratio_cols"][0]].dropna().sum()
-                den = u_df[active_ind_meta["ratio_cols"][1]].dropna().sum()
-                p_vals[u] = (num / den * 100) if den > 0 else np.nan
+            # Apply source filter if defined
+            if src_filter:
+                if '_fonte' in u_df.columns:
+                    u_df = u_df[u_df['_fonte'] == src_filter]
+                else:
+                    u_df = pd.DataFrame()
+                    
+            if u_df.empty:
+                p_vals[u] = np.nan
+                continue
                 
+            if ind_type == "Mensal":
+                if ratio_cols:
+                    valid_sub = u_df[u_df[ratio_cols[0]].notna() & u_df[ratio_cols[1]].notna()]
+                    num = valid_sub[ratio_cols[0]].sum()
+                    den = valid_sub[ratio_cols[1]].sum()
+                    p_vals[u] = (num / den * 100) if den > 0 else np.nan
+                elif sum_cols:
+                    p_vals[u] = u_df[sum_cols].sum(skipna=True).sum()
+                else:
+                    p_vals[u] = u_df[col].sum(skipna=True)
+            else: # Stock / Acumulado
+                # For historical monthly slice, u_df has only rows for period p. We fetch the first valid row values.
+                if ratio_cols:
+                    valid_rows = u_df[u_df[ratio_cols[0]].notna() & u_df[ratio_cols[1]].notna()]
+                    if not valid_rows.empty:
+                        num = valid_rows[ratio_cols[0]].values[0]
+                        den = valid_rows[ratio_cols[1]].values[0]
+                        p_vals[u] = (num / den * 100) if den > 0 else np.nan
+                    else:
+                        p_vals[u] = np.nan
+                elif sum_cols:
+                    valid_rows = u_df[u_df[sum_cols].notna().any(axis=1)]
+                    if not valid_rows.empty:
+                        p_vals[u] = valid_rows[sum_cols].sum(axis=1).values[0]
+                    else:
+                        p_vals[u] = np.nan
+                else:
+                    valid_rows = u_df[u_df[col].notna()]
+                    p_vals[u] = valid_rows[col].values[0] if not valid_rows.empty else np.nan
+            
         # Fill timeline points
         u_val = p_vals.get(sel_uls, np.nan)
         uls_timeline.append({"Periodo": p, "Valor": u_val, "Tipo": f"ULS {sel_uls}"})
@@ -1298,60 +1336,63 @@ else:
     # Import Plotly Graph Objects to build the custom chart with markers
     import plotly.graph_objects as go
     
-    fig = go.Figure()
-    
-    if df_chart.empty or df_chart['Valor'].dropna().empty:
+    if df_chart.empty or 'Valor' not in df_chart.columns or df_chart['Valor'].dropna().empty:
         st.markdown('<div class="chart-wrap" style="text-align: center; padding: 2rem; color: var(--text-muted);">Não existem dados históricos suficientes para gerar o gráfico comparativo deste indicador.</div>', unsafe_allow_html=True)
     else:
-        # ULS Timeline (Thick blue line with markers)
-        fig.add_trace(go.Scatter(
-            x=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Periodo'],
-            y=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Valor'],
-            name=f"ULS {sel_uls}",
-            line=dict(color="#2563eb", width=3),
-            mode="lines+markers",
-            marker=dict(size=6, symbol="circle")
-        ))
-        
-        # Group Timeline (Yellow line)
-        fig.add_trace(go.Scatter(
-            x=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Periodo'],
-            y=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Valor'],
-            name=f"Média Grupo {uls_grp}",
-            line=dict(color="#f59e0b", width=2, dash="dash"),
-            mode="lines"
-        ))
-        
-        # Play / SNS Timeline (Grey line)
-        fig.add_trace(go.Scatter(
-            x=df_chart[df_chart['Tipo'] == "Média SNS"]['Periodo'],
-            y=df_chart[df_chart['Tipo'] == "Média SNS"]['Valor'],
-            name="Média Nacional (SNS)",
-            line=dict(color="#71717a", width=2, dash="dot"),
-            mode="lines"
-        ))
-        
-        # Apply theme styling
-        fig.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=11),
-            margin=dict(l=40, r=20, t=10, b=40),
-            hovermode="x unified",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            xaxis=dict(
-                gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-                zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-                tickangle=-45
-            ),
-            yaxis=dict(
-                gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-                zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+        try:
+            fig = go.Figure()
+            
+            # ULS Timeline (Thick blue line with markers)
+            fig.add_trace(go.Scatter(
+                x=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Periodo'],
+                y=df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Valor'],
+                name=f"ULS {sel_uls}",
+                line=dict(color="#2563eb", width=3),
+                mode="lines+markers",
+                marker=dict(size=6, symbol="circle")
+            ))
+            
+            # Group Timeline (Yellow line)
+            fig.add_trace(go.Scatter(
+                x=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Periodo'],
+                y=df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]['Valor'],
+                name=f"Média Grupo {uls_grp}",
+                line=dict(color="#f59e0b", width=2, dash="dash"),
+                mode="lines"
+            ))
+            
+            # Play / SNS Timeline (Grey line)
+            fig.add_trace(go.Scatter(
+                x=df_chart[df_chart['Tipo'] == "Média SNS"]['Periodo'],
+                y=df_chart[df_chart['Tipo'] == "Média SNS"]['Valor'],
+                name="Média Nacional (SNS)",
+                line=dict(color="#71717a", width=2, dash="dot"),
+                mode="lines"
+            ))
+            
+            # Apply theme styling
+            fig.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=11),
+                margin=dict(l=40, r=20, t=10, b=40),
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                xaxis=dict(
+                    gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                    zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                    tickangle=-45
+                ),
+                yaxis=dict(
+                    gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                    zerolinecolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
+                )
             )
-        )
-        
-        st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        st.markdown('</div>', unsafe_allow_html=True)
+            
+            st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
+            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.markdown('</div>', unsafe_allow_html=True)
+        except Exception as chart_err:
+            st.markdown(f'<div class="chart-wrap" style="text-align: center; padding: 2rem; color: var(--text-muted);">Não foi possível gerar o gráfico para este indicador: {str(chart_err)}</div>', unsafe_allow_html=True)
         
 st.markdown("</div>", unsafe_allow_html=True)
