@@ -539,6 +539,22 @@ ind_sentido_map = {ind["name"]: ind["sentido"] for ind in heatmap_indicators}
 # Load data once
 df_uls, df_ids, periods = load_data()
 
+# Dynamically detect the most recent period that has substantial data (>= 2000 records)
+def detect_default_period(periods):
+    try:
+        conn = sqlite3.connect("sns_indicadores.db")
+        for p in periods[::-1]:
+            res = conn.execute("SELECT COUNT(*) FROM indicadores_sns WHERE periodo = ?", (p,)).fetchone()[0]
+            if res >= 2000:
+                conn.close()
+                return p
+        conn.close()
+    except:
+        pass
+    return periods[-1] if periods else None
+
+default_period = detect_default_period(periods)
+
 # 5. Core Heatmap Calculation Engine
 @st.cache_data
 def calculate_metrics(df_uls, df_ids, start_month, end_month):
@@ -765,7 +781,7 @@ if page == "matriz":
         st.markdown("<h3 style='margin: 0.3rem 0; font-size: 1.15rem; font-weight: 700; color: var(--text); line-height: 1.2;'>ULS Regionais<br><span style='font-size: 0.78rem; font-weight: 500; color: var(--text-muted);'>Relatório de Desempenho</span></h3>", unsafe_allow_html=True)
     
     with col_ate:
-        ate_index = 0
+        ate_index = reversed_periods.index(default_period) if default_period in reversed_periods else 0
         if _url_end_month and _url_end_month in reversed_periods:
             ate_index = reversed_periods.index(_url_end_month)
         end_month = st.selectbox("ATÉ:", options=reversed_periods, index=ate_index, key="end_month_sel")
@@ -1032,7 +1048,7 @@ else:
         new_pmode = "indicadores" if "Indicadores" in sel_pmode else "comparacao"
         
     with c_period:
-        period_idx = 0
+        period_idx = reversed_periods.index(default_period) if default_period in reversed_periods else 0
         if _url_end_month and _url_end_month in reversed_periods:
             period_idx = reversed_periods.index(_url_end_month)
         sel_period = st.selectbox("PERÍODO:", options=reversed_periods, index=period_idx, key="sel_period_box")
