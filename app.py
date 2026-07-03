@@ -1156,7 +1156,7 @@ else:
         """)
         
     profile_columns_html.append('</div>')
-    st.markdown("".join(profile_columns_html), unsafe_allow_html=True)
+    st.html("".join(profile_columns_html))
     
     # ----------------------------------------------------
     # PROFILE BOTTOM DETAIL & HISTORICAL CHART
@@ -1245,11 +1245,7 @@ else:
     cols_fetch_str = ", ".join(f'"{c}"' for c in cols_to_fetch)
     query_hist = f"SELECT periodo, mapped_uls, {cols_fetch_str} FROM indicadores_sns WHERE _fonte = ?"
     
-    # Source matching
-    source_to_query = None
-    for k, v in DATASET_MAPPING.items():
-        # Match indicator source
-        pass
+    # Source matching - direct query database table
         
     df_hist_raw = pd.read_sql(
         f"SELECT periodo, mapped_uls, {cols_fetch_str} FROM indicadores_sns WHERE periodo >= '2024-01' ORDER BY periodo", conn
