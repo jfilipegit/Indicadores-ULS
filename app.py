@@ -536,6 +536,10 @@ heatmap_indicators = [
     {"name": "Mortalidade Hosp.", "id": "MOR_A000", "type": "Stock", "col": "taxa_mortalidade", "is_pct": True, "sentido": "-"}
 ]
 
+# Map indicators globally for scope visibility across all page conditions
+ind_pct_map = {ind["name"]: ind["is_pct"] for ind in heatmap_indicators}
+ind_sentido_map = {ind["name"]: ind["sentido"] for ind in heatmap_indicators}
+
 # Load data once
 df_uls, df_ids, periods = load_data()
 
@@ -908,8 +912,7 @@ if page == "matriz":
             text_color = "white" if ratio > 0.45 else ("#000000" if not IS_DARK else "#ffffff")
         return f"rgb({r},{g},{b})", text_color
         
-    ind_pct_map = {ind["name"]: ind["is_pct"] for ind in heatmap_indicators}
-    ind_sentido_map = {ind["name"]: ind["sentido"] for ind in heatmap_indicators}
+    # Global maps used instead of local definitions
     
     html_table = []
     html_table.append(f"""
@@ -982,12 +985,6 @@ if page == "matriz":
         
     html_table.append('</tbody></table></div>')
     st.html("".join(html_table))
-    
-    st.markdown("""
-    > **Dica de Leitura:**
-    > * **Tons de Verde** representam melhorias de desempenho (aumento de indicadores positivos como consultas/cirurgias ou diminuição de indicadores negativos como urgências/demora média/dívida).
-    > * **Tons de Vermelho** indicam evolução desfavorável ou desvios desfavoráveis face ao período homólogo ou ano base.
-    """)
 
 # ----------------------------------------------------
 # PAGE 2: PERFIL INSTITUCIONAL (NEW)
