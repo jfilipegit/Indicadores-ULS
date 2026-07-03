@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Ambientes virtuais
+venv/
+env/
+.venv/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Ficheiros temporários e de desenvolvimento
+scratch/
+*.log
+*.tmp
+
+# Ficheiros Office temporários
+~$*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
