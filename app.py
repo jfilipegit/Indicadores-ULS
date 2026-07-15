@@ -247,6 +247,10 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"], .main, .b
     max-width: 165px;
     width: 165px;
     white-space: nowrap;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background-color: var(--bg);
 }}
 .heatmap-table td.cell {{
     text-align: center;
@@ -531,6 +535,25 @@ heatmap_indicators = [
     {"name": "Consumo Antibióticos", "id": "CH_L_RAT", "type": "Stock", "col": "unidades_antibioticos", "is_pct": True, "sentido": "-", "ratio_cols": ("unidades_antibioticos", "unidades_totais")},
     {"name": "Mortalidade Hosp.", "id": "MOR_A000", "type": "Stock", "col": "taxa_mortalidade", "is_pct": True, "sentido": "-"}
 ]
+
+thematic_categories = {
+    "Acesso": {
+        "title": "Acesso", "icon": "📁",
+        "indicators": ["% 1ªs Cons. Tempo Adeq.", "% LIC TMRG", "Taxa Ocup. Intern.", "Acesso Cons. CSP", "Consultas CSP", "Cont. Enfermagem CSP", "Cons. Hospitalares", "1ªs Consultas", "Urgências", "Total Urgência (Link)", "Hemodiálise"]
+    },
+    "Qualidade": {
+        "title": "Qualidade", "icon": "⭐",
+        "indicators": ["Mortalidade AVC", "% Frat. Anca 48h", "% Cesarianas", "Consumo Antibióticos", "Mortalidade Hosp.", "Controlo Diabetes", "Controlo Hipertensão", "Vig. Recém-Nascidos"]
+    },
+    "Sustentabilidade": {
+        "title": "Sustentabilidade e Eficiência", "icon": "📊",
+        "indicators": ["Demora Pré-Cirurgia", "Cir. Ambulatório", "Demora Média", "EBITDA (M€)", "Dívida Vencida (M€)", "% Gastos TE/Suplementares", "Dias de Ausência"]
+    },
+    "Operacional": {
+        "title": "Operacional e Recursos", "icon": "⚙️",
+        "indicators": ["Cir. Programadas", "Doentes Saídos", "Nº Partos", "% Utentes c/ MdF", "Total RH", "Trab. por Vinculação", "Horas Trab. Extra", "Ausências Formação"]
+    }
+}
 
 # Map indicators globally for scope visibility across all page conditions
 ind_pct_map = {ind["name"]: ind["is_pct"] for ind in heatmap_indicators}
@@ -932,82 +955,185 @@ if page == "matriz":
     <table class="heatmap-table">
     <thead>
     <tr style="vertical-align: bottom;">
-        <th style="text-align: right; font-size: 10px; padding-bottom: 8px; padding-right: 8px; border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; position: sticky; top: 0; z-index: 11; background-color: {'#09090b' if IS_DARK else '#ffffff'}; font-weight: 700;">Indicador</th>
+        <th style="text-align: right; font-size: 10px; padding-bottom: 8px; padding-right: 8px; border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; position: sticky; top: 0; left: 0; z-index: 12; background-color: {'#09090b' if IS_DARK else '#ffffff'}; font-weight: 700;">Indicador</th>
     """)
     for col_name in plot_df.columns:
         short_col = col_name.replace("ULS ", "")
         html_table.append(f'<th><div class="hdr-label">{short_col}</div></th>')
     html_table.append('</tr></thead><tbody>')
     
-    for ind_name in plot_df.index:
-        clean_ind = ind_name.replace("▲ ", "").replace("▼ ", "").strip()
-        ind_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
-        persp_idx  = persp_options.index(perspective)
-        grps_str   = ",".join(group_filter)
-        filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}"
-        arrow = ""
-        color_link = "#ffffff" if IS_DARK else "#000000"
-        if st.session_state.sort_ind == clean_ind:
-            if st.session_state.sort_state == 1:
-                arrow = "▲ "
-                next_href = f"?sort={ind_safe}&state=2{filter_params}"
-                color_link = "#22c55e"
-            elif st.session_state.sort_state == 2:
-                arrow = "▼ "
-                next_href = f"?{filter_params.lstrip('&')}"
-                color_link = "#ef4444"
-        else:
-            next_href = f"?sort={ind_safe}&state=1{filter_params}"
+    # Map clean indicator name to actual index name in plot_df
+    idx_map = {}
+    for idx_name in plot_df.index:
+        clean = idx_name.replace("▲ ", "").replace("▼ ", "").strip()
+        idx_map[clean] = idx_name
+        
+    rendered_indices = set()
+    
+    # Render grouped indicators
+    for theme_key, theme_data in thematic_categories.items():
+        # Filter indicators in this theme that are present in the dataset
+        theme_inds = [ind for ind in theme_data["indicators"] if ind in idx_map]
+        if not theme_inds:
+            continue
             
-        html_table.append('<tr style="height: 20px;">')
+        # Category separator row
         html_table.append(f"""
-        <td class="row-lbl" style="border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; font-weight: 700;">
-            <a href="{next_href}" target="_self" style="color: {color_link}; text-decoration: none; display: block; width: 100%;">
-                {arrow}{clean_ind}
-            </a>
-        </td>
+        <tr style="height: 26px;">
+            <td class="row-lbl" style="position: sticky; left: 0; z-index: 5; background-color: {'#18181b' if IS_DARK else '#f4f4f5'}; border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; font-weight: 800; text-align: left; font-size: 9.5px; color: var(--accent); padding-left: 8px;">
+                {theme_data["icon"]} {theme_data["title"]}
+            </td>
+            <td colspan="{len(plot_df.columns)}" style="background-color: {'#18181b' if IS_DARK else '#f4f4f5'}; border-bottom: 1px solid var(--border);"></td>
+        </tr>
         """)
         
-        is_pct = ind_pct_map.get(clean_ind, False)
-        sentido = ind_sentido_map.get(clean_ind, "+")
-        
-        for col_name in plot_df.columns:
-            val = plot_df.at[ind_name, col_name]
-            raw_val = df_raw_vals_plot.at[clean_ind, col_name]
-            bg_color, text_color = get_color_for_value(val, sentido, perspective)
-            is_pp = ("%" in clean_ind or "Taxa" in clean_ind or "Proporção" in clean_ind or "Percentagem" in clean_ind)
-            if pd.isna(val):
-                val_str = "-"
-            else:
-                val_format = f"{val:+.1f}" if "Variação" in perspective else f"{val:.1f}"
-                suffix = " pp" if (is_pp and "Variação" in perspective) else val_suffix
-                val_str = f"{val_format}{suffix}"
-            if pd.isna(raw_val):
-                raw_str = "Sem dados"
-            else:
-                if "Dívida" in clean_ind or "EBITDA" in clean_ind:
-                    raw_str = f"{(raw_val/1e6):.2f} M€"
-                elif is_pp:
-                    raw_str = f"{raw_val:.1f}%"
-                else:
-                    raw_str = f"{raw_val:,.0f}"
-            tooltip = f"{col_name} - {clean_ind}\nCalculado: {val_str}\nValor Real: {raw_str}"
-            # Target ULS determination for click destination
-            uls_target = col_name
-            if col_name in ["SNS", "Média Grupo"]:
-                # If clicking average columns, redirect to the first real ULS column in plot_df
-                real_uls_cols = [c for c in plot_df.columns if c not in ["SNS", "Média Grupo"]]
-                uls_target = real_uls_cols[0] if real_uls_cols else sel_uls
-                
-            uls_url_safe = uls_target.replace(" ", "_").replace("/", "slash")
-            ind_url_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
-            cell_pmode = "comparacao" if "Média" in perspective or "Grupo" in perspective else "indicadores"
-            cell_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={cell_pmode}&end={end_month}"
+        for clean_ind in theme_inds:
+            plot_idx = idx_map[clean_ind]
+            rendered_indices.add(plot_idx)
             
-            cell_link = f'<a href="{cell_href}" target="_self" style="color: {text_color}; text-decoration: none; display: block; width: 100%; height: 100%; line-height: 20px; text-align: center;">{val_str}</a>'
-            html_table.append(f'<td title="{tooltip}" style="background-color: {bg_color}; padding: 0;" class="cell">{cell_link}</td>')
-        html_table.append('</tr>')
-        
+            ind_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
+            persp_idx  = persp_options.index(perspective)
+            grps_str   = ",".join(group_filter)
+            filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}"
+            arrow = ""
+            color_link = "#ffffff" if IS_DARK else "#000000"
+            if st.session_state.sort_ind == clean_ind:
+                if st.session_state.sort_state == 1:
+                    arrow = "▲ "
+                    next_href = f"?sort={ind_safe}&state=2{filter_params}"
+                    color_link = "#22c55e"
+                elif st.session_state.sort_state == 2:
+                    arrow = "▼ "
+                    next_href = f"?{filter_params.lstrip('&')}"
+                    color_link = "#ef4444"
+            else:
+                next_href = f"?sort={ind_safe}&state=1{filter_params}"
+                
+            html_table.append('<tr style="height: 20px;">')
+            html_table.append(f"""
+            <td class="row-lbl" style="border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; font-weight: 700;">
+                <a href="{next_href}" target="_self" style="color: {color_link}; text-decoration: none; display: block; width: 100%;">
+                    {arrow}{clean_ind}
+                </a>
+            </td>
+            """)
+            
+            is_pct = ind_pct_map.get(clean_ind, False)
+            sentido = ind_sentido_map.get(clean_ind, "+")
+            
+            for col_name in plot_df.columns:
+                val = plot_df.at[plot_idx, col_name]
+                raw_val = df_raw_vals_plot.at[clean_ind, col_name]
+                bg_color, text_color = get_color_for_value(val, sentido, perspective)
+                is_pp = ("%" in clean_ind or "Taxa" in clean_ind or "Proporção" in clean_ind or "Percentagem" in clean_ind)
+                if pd.isna(val):
+                    val_str = "-"
+                else:
+                    val_format = f"{val:+.1f}" if "Variação" in perspective else f"{val:.1f}"
+                    suffix = " pp" if (is_pp and "Variação" in perspective) else val_suffix
+                    val_str = f"{val_format}{suffix}"
+                if pd.isna(raw_val):
+                    raw_str = "Sem dados"
+                else:
+                    if "Dívida" in clean_ind or "EBITDA" in clean_ind:
+                        raw_str = f"{(raw_val/1e6):.2f} M€"
+                    elif is_pp:
+                        raw_str = f"{raw_val:.1f}%"
+                    else:
+                        raw_str = f"{raw_val:,.0f}"
+                tooltip = f"{col_name} - {clean_ind}\nCalculado: {val_str}\nValor Real: {raw_str}"
+                uls_target = col_name
+                if col_name in ["SNS", "Média Grupo"]:
+                    real_uls_cols = [c for c in plot_df.columns if c not in ["SNS", "Média Grupo"]]
+                    uls_target = real_uls_cols[0] if real_uls_cols else sel_uls
+                    
+                uls_url_safe = uls_target.replace(" ", "_").replace("/", "slash")
+                ind_url_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
+                cell_pmode = "comparacao" if "Média" in perspective or "Grupo" in perspective else "indicadores"
+                cell_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={cell_pmode}&end={end_month}"
+                
+                cell_link = f'<a href="{cell_href}" target="_self" style="color: {text_color}; text-decoration: none; display: block; width: 100%; height: 100%; line-height: 20px; text-align: center;">{val_str}</a>'
+                html_table.append(f'<td title="{tooltip}" style="background-color: {bg_color}; padding: 0;" class="cell">{cell_link}</td>')
+            html_table.append('</tr>')
+            
+    # Render leftover indicators (if any, as safety fallback)
+    leftover_indices = [idx for idx in plot_df.index if idx not in rendered_indices]
+    if leftover_indices:
+        html_table.append(f"""
+        <tr style="height: 26px;">
+            <td class="row-lbl" style="position: sticky; left: 0; z-index: 5; background-color: {'#18181b' if IS_DARK else '#f4f4f5'}; border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; font-weight: 800; text-align: left; font-size: 9.5px; color: var(--accent); padding-left: 8px;">
+                ⚙️ Outros Indicadores
+            </td>
+            <td colspan="{len(plot_df.columns)}" style="background-color: {'#18181b' if IS_DARK else '#f4f4f5'}; border-bottom: 1px solid var(--border);"></td>
+        </tr>
+        """)
+        for plot_idx in leftover_indices:
+            clean_ind = plot_idx.replace("▲ ", "").replace("▼ ", "").strip()
+            ind_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
+            persp_idx  = persp_options.index(perspective)
+            grps_str   = ",".join(group_filter)
+            filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}"
+            arrow = ""
+            color_link = "#ffffff" if IS_DARK else "#000000"
+            if st.session_state.sort_ind == clean_ind:
+                if st.session_state.sort_state == 1:
+                    arrow = "▲ "
+                    next_href = f"?sort={ind_safe}&state=2{filter_params}"
+                    color_link = "#22c55e"
+                elif st.session_state.sort_state == 2:
+                    arrow = "▼ "
+                    next_href = f"?{filter_params.lstrip('&')}"
+                    color_link = "#ef4444"
+            else:
+                next_href = f"?sort={ind_safe}&state=1{filter_params}"
+                
+            html_table.append('<tr style="height: 20px;">')
+            html_table.append(f"""
+            <td class="row-lbl" style="border-right: 2px solid {'#3f3f46' if IS_DARK else '#e4e4e7'}; font-weight: 700;">
+                <a href="{next_href}" target="_self" style="color: {color_link}; text-decoration: none; display: block; width: 100%;">
+                    {arrow}{clean_ind}
+                </a>
+            </td>
+            """)
+            
+            is_pct = ind_pct_map.get(clean_ind, False)
+            sentido = ind_sentido_map.get(clean_ind, "+")
+            
+            for col_name in plot_df.columns:
+                val = plot_df.at[plot_idx, col_name]
+                raw_val = df_raw_vals_plot.at[clean_ind, col_name]
+                bg_color, text_color = get_color_for_value(val, sentido, perspective)
+                is_pp = ("%" in clean_ind or "Taxa" in clean_ind or "Proporção" in clean_ind or "Percentagem" in clean_ind)
+                if pd.isna(val):
+                    val_str = "-"
+                else:
+                    val_format = f"{val:+.1f}" if "Variação" in perspective else f"{val:.1f}"
+                    suffix = " pp" if (is_pp and "Variação" in perspective) else val_suffix
+                    val_str = f"{val_format}{suffix}"
+                if pd.isna(raw_val):
+                    raw_str = "Sem dados"
+                else:
+                    if "Dívida" in clean_ind or "EBITDA" in clean_ind:
+                        raw_str = f"{(raw_val/1e6):.2f} M€"
+                    elif is_pp:
+                        raw_str = f"{raw_val:.1f}%"
+                    else:
+                        raw_str = f"{raw_val:,.0f}"
+                tooltip = f"{col_name} - {clean_ind}\nCalculado: {val_str}\nValor Real: {raw_str}"
+                uls_target = col_name
+                if col_name in ["SNS", "Média Grupo"]:
+                    real_uls_cols = [c for c in plot_df.columns if c not in ["SNS", "Média Grupo"]]
+                    uls_target = real_uls_cols[0] if real_uls_cols else sel_uls
+                    
+                uls_url_safe = uls_target.replace(" ", "_").replace("/", "slash")
+                ind_url_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
+                cell_pmode = "comparacao" if "Média" in perspective or "Grupo" in perspective else "indicadores"
+                cell_href = f"?page=perfil&uls={uls_url_safe}&ind={ind_url_safe}&pmode={cell_pmode}&end={end_month}"
+                
+                cell_link = f'<a href="{cell_href}" target="_self" style="color: {text_color}; text-decoration: none; display: block; width: 100%; height: 100%; line-height: 20px; text-align: center;">{val_str}</a>'
+                html_table.append(f'<td title="{tooltip}" style="background-color: {bg_color}; padding: 0;" class="cell">{cell_link}</td>')
+            html_table.append('</tr>')
+            
     html_table.append('</tbody></table></div>')
     st.html("".join(html_table))
 
@@ -1015,26 +1141,6 @@ if page == "matriz":
 # PAGE 2: PERFIL INSTITUCIONAL (NEW)
 # ----------------------------------------------------
 else:
-    # 4 Thematic columns configuration with their respective indicators
-    thematic_categories = {
-        "Acesso": {
-            "title": "Acesso", "icon": "📁",
-            "indicators": ["% 1ªs Cons. Tempo Adeq.", "% LIC TMRG", "Taxa Ocup. Intern.", "Acesso Cons. CSP", "Consultas CSP", "Cont. Enfermagem CSP", "Cons. Hospitalares", "1ªs Consultas", "Urgências", "Hemodiálise"]
-        },
-        "Qualidade": {
-            "title": "Qualidade", "icon": "⭐",
-            "indicators": ["Mortalidade AVC", "% Frat. Anca 48h", "% Cesarianas", "Consumo Antibióticos", "Mortalidade Hosp.", "Controlo Diabetes", "Controlo Hipertensão", "Vig. Recém-Nascidos"]
-        },
-        "Sustentabilidade": {
-            "title": "Sustentabilidade e Eficiência", "icon": "📊",
-            "indicators": ["Demora Pré-Cirurgia", "Cir. Ambulatório", "Demora Média", "EBITDA (M€)", "Dívida Vencida (M€)", "% Gastos TE/Suplementares", "Dias de Ausência"]
-        },
-        "Operacional": {
-            "title": "Operacional e Recursos", "icon": "⚙️",
-            "indicators": ["Cir. Programadas", "Doentes Saídos", "Nº Partos", "% Utentes c/ MdF", "Total RH", "Trab. por Vinculação", "Horas Trab. Extra", "Ausências Formação"]
-        }
-    }
-    
     indicator_areas = {
         "Cons. Hospitalares": "Hospitalar", "1ªs Consultas": "Hospitalar", "Acesso Cons. CSP": "Cuidados Primários", "Total Urgência (Link)": "Urgência",
         "Doentes Saídos": "Hospitalar", "Demora Média": "Hospitalar", "% 1ªs Cons. Tempo Adeq.": "Hospitalar", "Cir. Programadas": "Hospitalar",
