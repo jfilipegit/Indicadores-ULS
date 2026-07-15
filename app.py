@@ -1738,14 +1738,12 @@ else:
                             tickangle=-45
                         ),
                         yaxis=dict(
-                            title=selected_ind_name,
-                            titlefont=dict(color="#2563eb"),
+                            title=dict(text=selected_ind_name, font=dict(color="#2563eb")),
                             tickfont=dict(color="#2563eb"),
                             gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
                         ),
                         yaxis2=dict(
-                            title=corr_ind_name,
-                            titlefont=dict(color="#ef4444"),
+                            title=dict(text=corr_ind_name, font=dict(color="#ef4444")),
                             tickfont=dict(color="#ef4444"),
                             overlaying="y",
                             side="right"
