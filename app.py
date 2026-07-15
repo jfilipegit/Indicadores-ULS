@@ -50,6 +50,7 @@ _url_end_month  = params.get("end",   None)
 _url_start_month= params.get("start", None)
 _url_persp_idx  = params.get("persp", None)
 _url_groups     = params.get("grps",  None)  # comma-separated group names
+_url_dims       = params.get("dims",  None)  # comma-separated dimension names
 
 if "prev_points" not in st.session_state:
     st.session_state.prev_points = []
@@ -798,7 +799,7 @@ st.markdown(nav_html, unsafe_allow_html=True)
 # PAGE 1: MATRIZ OPERACIONAL (HEATMAP)
 # ----------------------------------------------------
 if page == "matriz":
-    col_title, col_de, col_ate, col_persp, col_group = st.columns([1.5, 0.6, 0.6, 1.1, 1.1])
+    col_title, col_de, col_ate, col_persp, col_dim, col_group = st.columns([1.3, 0.5, 0.5, 1.0, 0.8, 0.8])
     
     with col_title:
         st.markdown("<h3 style='margin: 0.3rem 0; font-size: 1.15rem; font-weight: 700; color: var(--text); line-height: 1.2;'>ULS Regionais<br><span style='font-size: 0.78rem; font-weight: 500; color: var(--text-muted);'>Relatório de Desempenho</span></h3>", unsafe_allow_html=True)
@@ -839,6 +840,16 @@ if page == "matriz":
             
     with col_persp:
         perspective = st.selectbox("PERSPETIVA:", options=persp_options, index=persp_index, key="persp_sel")
+        
+    with col_dim:
+        available_dims = list(thematic_categories.keys())
+        if _url_dims:
+            default_dims = [d for d in _url_dims.split(",") if d in available_dims]
+            if not default_dims:
+                default_dims = ["Acesso"]
+        else:
+            default_dims = ["Acesso"]
+        dim_filter = st.multiselect("DIMENSÃO:", options=available_dims, default=default_dims, key="dim_sel")
         
     with col_group:
         available_grps = sorted(df_uls['Grupo'].dropna().unique().tolist())
@@ -972,6 +983,8 @@ if page == "matriz":
     
     # Render grouped indicators
     for theme_key, theme_data in thematic_categories.items():
+        if theme_key not in dim_filter:
+            continue
         # Filter indicators in this theme that are present in the dataset
         theme_inds = [ind for ind in theme_data["indicators"] if ind in idx_map]
         if not theme_inds:
@@ -994,7 +1007,8 @@ if page == "matriz":
             ind_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
             persp_idx  = persp_options.index(perspective)
             grps_str   = ",".join(group_filter)
-            filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}"
+            dims_str   = ",".join(dim_filter)
+            filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}&dims={dims_str}"
             arrow = ""
             color_link = "#ffffff" if IS_DARK else "#000000"
             if st.session_state.sort_ind == clean_ind:
@@ -1072,7 +1086,8 @@ if page == "matriz":
             ind_safe = clean_ind.replace(" ", "_").replace("%", "pct").replace("/", "slash")
             persp_idx  = persp_options.index(perspective)
             grps_str   = ",".join(group_filter)
-            filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}"
+            dims_str   = ",".join(dim_filter)
+            filter_params = f"&page=matriz&end={end_month}&start={start_month}&persp={persp_idx}&grps={grps_str}&dims={dims_str}"
             arrow = ""
             color_link = "#ffffff" if IS_DARK else "#000000"
             if st.session_state.sort_ind == clean_ind:
