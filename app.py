@@ -843,40 +843,42 @@ if page == "matriz":
         perspective = st.selectbox("Perspetiva de Análise:", options=persp_options, index=persp_index, key="persp_sel")
         
     with col_dim:
-        available_dims = list(thematic_categories.keys())
-        dim_options = available_dims + ["Todas"]
-        
-        default_dim = "Acesso"
-        if _url_dims:
-            first_url_dim = _url_dims.split(",")[0]
-            if first_url_dim in dim_options:
-                default_dim = first_url_dim
-                
-        dim_index = dim_options.index(default_dim)
-        selected_dim = st.selectbox("Dimensão do Indicador:", options=dim_options, index=dim_index, key="dim_sel")
-        
-        if selected_dim == "Todas":
-            dim_filter = available_dims
-        else:
-            dim_filter = [selected_dim]
+        st.markdown("<label style='font-size: 0.8rem; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 4px;'>Dimensões do Indicador:</label>", unsafe_allow_html=True)
+        with st.popover("Selecionar Dimensões", use_container_width=True):
+            available_dims = list(thematic_categories.keys())
+            
+            default_dims = ["Acesso"]
+            if _url_dims:
+                parsed_dims = [d for d in _url_dims.split(",") if d in available_dims]
+                if parsed_dims:
+                    default_dims = parsed_dims
+            
+            dim_checkboxes = {}
+            for dim in available_dims:
+                dim_checkboxes[dim] = st.checkbox(dim, value=(dim in default_dims), key=f"chk_dim_{dim}")
+            
+            dim_filter = [dim for dim, val in dim_checkboxes.items() if val]
+            if not dim_filter:
+                dim_filter = ["Acesso"]
         
     with col_group:
-        available_grps = sorted(df_uls['Grupo'].dropna().unique().tolist())
-        group_options = available_grps + ["Todos"]
-        
-        default_grp = "C" if "C" in available_grps else group_options[0]
-        if _url_groups:
-            first_url_grp = _url_groups.split(",")[0]
-            if first_url_grp in group_options:
-                default_grp = first_url_grp
-                
-        group_index = group_options.index(default_grp)
-        selected_grp = st.selectbox("Grupo de Financiamento:", options=group_options, index=group_index, key="group_sel")
-        
-        if selected_grp == "Todos":
-            group_filter = available_grps
-        else:
-            group_filter = [selected_grp]
+        st.markdown("<label style='font-size: 0.8rem; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 4px;'>Grupo de Financiamento:</label>", unsafe_allow_html=True)
+        with st.popover("Selecionar Grupos", use_container_width=True):
+            available_grps = sorted(df_uls['Grupo'].dropna().unique().tolist())
+            
+            default_grps = ["C"] if "C" in available_grps else [available_grps[0]]
+            if _url_groups:
+                parsed_grps = [g for g in _url_groups.split(",") if g in available_grps]
+                if parsed_grps:
+                    default_grps = parsed_grps
+            
+            grp_checkboxes = {}
+            for grp in available_grps:
+                grp_checkboxes[grp] = st.checkbox(f"Grupo {grp}", value=(grp in default_grps), key=f"chk_grp_{grp}")
+            
+            group_filter = [grp for grp, val in grp_checkboxes.items() if val]
+            if not group_filter:
+                group_filter = available_grps
         
     # Calculations
     df_var_hom, df_base_idx, df_grupo_pos, df_raw_vals = calculate_metrics(df_uls, df_ids, start_month, end_month)
