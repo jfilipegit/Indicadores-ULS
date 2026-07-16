@@ -302,10 +302,11 @@ div[role="button"] {{
 }}
 /* Compact labels */
 label[data-testid="stWidgetLabel"] {{
-    margin-bottom: 1px !important;
+    margin-bottom: 4px !important;
     padding-bottom: 0px !important;
-    font-size: 0.72rem !important;
+    font-size: 0.8rem !important;
     font-weight: 600 !important;
+    color: var(--text-dim) !important;
 }}
 /* Reduce general spacing */
 div[data-testid="stVerticalBlock"] > div {{
@@ -808,7 +809,7 @@ if page == "matriz":
         ate_index = reversed_periods.index(default_period) if default_period in reversed_periods else 0
         if _url_end_month and _url_end_month in reversed_periods:
             ate_index = reversed_periods.index(_url_end_month)
-        end_month = st.selectbox("ATÉ:", options=reversed_periods, index=ate_index, key="end_month_sel")
+        end_month = st.selectbox("Mês Final (Até):", options=reversed_periods, index=ate_index, key="end_month_sel")
         
     end_year = end_month[:4]
     default_start = f"{end_year}-01"
@@ -824,7 +825,7 @@ if page == "matriz":
         start_index = start_options.index(_url_start_month)
         
     with col_de:
-        start_month = st.selectbox("DE:", options=start_options, index=start_index, key="start_month_sel")
+        start_month = st.selectbox("Mês Inicial (De):", options=start_options, index=start_index, key="start_month_sel")
         
     persp_options = [
         "Variação Homóloga (vs. Período Homólogo)",
@@ -839,29 +840,43 @@ if page == "matriz":
             persp_index = 0
             
     with col_persp:
-        perspective = st.selectbox("PERSPETIVA:", options=persp_options, index=persp_index, key="persp_sel")
+        perspective = st.selectbox("Perspetiva de Análise:", options=persp_options, index=persp_index, key="persp_sel")
         
     with col_dim:
         available_dims = list(thematic_categories.keys())
+        dim_options = available_dims + ["Todas"]
+        
+        default_dim = "Acesso"
         if _url_dims:
-            default_dims = [d for d in _url_dims.split(",") if d in available_dims]
-            if not default_dims:
-                default_dims = ["Acesso"]
+            first_url_dim = _url_dims.split(",")[0]
+            if first_url_dim in dim_options:
+                default_dim = first_url_dim
+                
+        dim_index = dim_options.index(default_dim)
+        selected_dim = st.selectbox("Dimensão do Indicador:", options=dim_options, index=dim_index, key="dim_sel")
+        
+        if selected_dim == "Todas":
+            dim_filter = available_dims
         else:
-            default_dims = ["Acesso"]
-        dim_filter = st.multiselect("DIMENSÃO:", options=available_dims, default=default_dims, key="dim_sel")
+            dim_filter = [selected_dim]
         
     with col_group:
         available_grps = sorted(df_uls['Grupo'].dropna().unique().tolist())
+        group_options = available_grps + ["Todos"]
+        
+        default_grp = "C" if "C" in available_grps else group_options[0]
         if _url_groups:
-            default_grps = [g for g in _url_groups.split(",") if g in available_grps]
-            if not default_grps:
-                default_grps = available_grps
+            first_url_grp = _url_groups.split(",")[0]
+            if first_url_grp in group_options:
+                default_grp = first_url_grp
+                
+        group_index = group_options.index(default_grp)
+        selected_grp = st.selectbox("Grupo de Financiamento:", options=group_options, index=group_index, key="group_sel")
+        
+        if selected_grp == "Todos":
+            group_filter = available_grps
         else:
-            default_grps = [g for g in available_grps if g == "C"] # standard group default
-            if not default_grps:
-                default_grps = available_grps
-        group_filter = st.multiselect("GRUPO ULS:", options=available_grps, default=default_grps, key="group_sel")
+            group_filter = [selected_grp]
         
     # Calculations
     df_var_hom, df_base_idx, df_grupo_pos, df_raw_vals = calculate_metrics(df_uls, df_ids, start_month, end_month)
@@ -1096,17 +1111,17 @@ else:
     uls_index = uls_list.index(st.session_state.selected_uls) if st.session_state.selected_uls in uls_list else 0
     
     with c_uls:
-        sel_uls = st.selectbox("INSTITUIÇÃO (ULS):", options=uls_list, index=uls_index, key="sel_uls_box")
+        sel_uls = st.selectbox("Selecionar ULS / Instituição:", options=uls_list, index=uls_index, key="sel_uls_box")
     
     with c_pmode:
-        sel_pmode = st.selectbox("VISUALIZAÇÃO:", options=["Indicadores da ULS", "Comparação do Grupo"], index=0 if st.session_state.profile_mode == "indicadores" else 1, key="sel_pmode_box")
+        sel_pmode = st.selectbox("Modo de Comparação:", options=["Indicadores da ULS", "Comparação do Grupo"], index=0 if st.session_state.profile_mode == "indicadores" else 1, key="sel_pmode_box")
         new_pmode = "indicadores" if "Indicadores" in sel_pmode else "comparacao"
         
     with c_period:
         period_idx = reversed_periods.index(default_period) if default_period in reversed_periods else 0
         if _url_end_month and _url_end_month in reversed_periods:
             period_idx = reversed_periods.index(_url_end_month)
-        sel_period = st.selectbox("PERÍODO:", options=reversed_periods, index=period_idx, key="sel_period_box")
+        sel_period = st.selectbox("Mês de Referência:", options=reversed_periods, index=period_idx, key="sel_period_box")
 
     # Get financing group of selected ULS
     uls_grp = df_uls[df_uls['ULS'] == sel_uls]['Grupo'].dropna().values[0]
