@@ -30,7 +30,7 @@ selected_ind = params.get("ind", "% 1ªs Cons. Tempo Adeq.").replace("_", " ").r
 st.session_state.selected_ind = selected_ind
 
 # Selected ULS for Profile Page (defaults to 'Baixo Mondego' or first available)
-selected_uls = params.get("uls", "ULS Entre Douro e Vouga").replace("_", " ").replace("slash", "/")
+selected_uls = params.get("uls", "ULS Região de Aveiro").replace("_", " ").replace("slash", "/")
 st.session_state.selected_uls = selected_uls
 
 # Toggle for Profile Page comparison mode ('indicadores' or 'comparacao')
