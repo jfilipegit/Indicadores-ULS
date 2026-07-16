@@ -328,6 +328,7 @@ button[data-testid="stPopoverButton"] {{
     justify-content: space-between !important;
     width: 100% !important;
     box-shadow: none !important;
+    vertical-align: top !important; /* Prevent double-line text from pushing button down */
 }}
 button[data-testid="stPopoverButton"]:hover {{
     border-color: var(--accent) !important;
@@ -338,32 +339,57 @@ button[data-testid="stPopoverButton"] p {{
     margin: 0 !important;
     padding: 0 !important;
     color: inherit !important;
+    white-space: nowrap !important; /* Keep single line */
+    text-overflow: ellipsis !important;
+    overflow: hidden !important;
 }}
 
-/* Style Popover Body content to prevent black background / low contrast */
-div[data-testid="stPopoverBody"] {{
+/* Style Popover Body content and BaseWeb overlays to prevent black background */
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] * ,
+div[data-testid="stPopoverBody"],
+div[data-testid="stPopoverBody"] * {{
     background-color: var(--card) !important;
-    border: 1px solid var(--border) !important;
     color: var(--text) !important;
+    border-color: var(--border) !important;
+}}
+div[data-testid="stPopoverBody"] {{
+    border: 1px solid var(--border) !important;
     border-radius: 8px !important;
     box-shadow: var(--shadow) !important;
     padding: 10px !important;
 }}
-div[data-testid="stPopoverBody"] label p {{
+div[data-baseweb="popover"] label,
+div[data-testid="stPopoverBody"] label,
+div[data-baseweb="popover"] p,
+div[data-testid="stPopoverBody"] p {{
     color: var(--text) !important;
     font-size: 0.75rem !important;
 }}
 
-/* Custom label for popover triggers to align with native selectbox labels */
-.popover-label {{
+/* Standardize label heights to align inputs horizontally */
+label[data-testid="stWidgetLabel"], .popover-label {{
+    height: 34px !important;
+    min-height: 34px !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    margin-bottom: 4px !important;
+    padding-bottom: 0px !important;
     font-size: 0.8rem !important;
     font-weight: 600 !important;
     color: var(--text-dim) !important;
-    margin-bottom: -10px !important; /* Pull the popover button up to align with selectbox */
-    margin-top: 1px !important;
-    display: block !important;
-    height: 18px !important;
-    line-height: 18px !important;
+}}
+
+/* Style Popover trigger container to align button perfectly with selectboxes */
+div[data-testid="stPopover"] {{
+    margin-top: 4px !important;
+}}
+
+.popover-label {{
+    margin: 0 !important;
+    display: flex !important;
+    height: 34px !important;
+    line-height: 1.2 !important;
 }}
 
 /* Page navigation pill tabs */
