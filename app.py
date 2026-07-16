@@ -312,9 +312,58 @@ label[data-testid="stWidgetLabel"] {{
 div[data-testid="stVerticalBlock"] > div {{
     gap: 0.2rem !important;
 }}
-div[data-baseweb="popover"] {{
+/* Style Popover Button to match Selectbox */
+button[data-testid="stPopoverButton"] {{
     background-color: var(--card) !important;
+    border: 1px solid var(--border) !important;
     color: var(--text) !important;
+    border-radius: 7px !important;
+    font-size: 0.75rem !important;
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 0 10px !important;
+    font-weight: 500 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    box-shadow: none !important;
+}}
+button[data-testid="stPopoverButton"]:hover {{
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+}}
+button[data-testid="stPopoverButton"] p {{
+    font-size: 0.75rem !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: inherit !important;
+}}
+
+/* Style Popover Body content to prevent black background / low contrast */
+div[data-testid="stPopoverBody"] {{
+    background-color: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow) !important;
+    padding: 10px !important;
+}}
+div[data-testid="stPopoverBody"] label p {{
+    color: var(--text) !important;
+    font-size: 0.75rem !important;
+}}
+
+/* Custom label for popover triggers to align with native selectbox labels */
+.popover-label {{
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    color: var(--text-dim) !important;
+    margin-bottom: -10px !important; /* Pull the popover button up to align with selectbox */
+    margin-top: 1px !important;
+    display: block !important;
+    height: 18px !important;
+    line-height: 18px !important;
 }}
 
 /* Page navigation pill tabs */
@@ -843,7 +892,7 @@ if page == "matriz":
         perspective = st.selectbox("Perspetiva de Análise:", options=persp_options, index=persp_index, key="persp_sel")
         
     with col_dim:
-        st.markdown("<label style='font-size: 0.8rem; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 4px;'>Dimensões do Indicador:</label>", unsafe_allow_html=True)
+        st.markdown("<div class='popover-label'>Dimensões do Indicador:</div>", unsafe_allow_html=True)
         with st.popover("Selecionar Dimensões", use_container_width=True):
             available_dims = list(thematic_categories.keys())
             
@@ -862,7 +911,7 @@ if page == "matriz":
                 dim_filter = ["Acesso"]
         
     with col_group:
-        st.markdown("<label style='font-size: 0.8rem; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 4px;'>Grupo de Financiamento:</label>", unsafe_allow_html=True)
+        st.markdown("<div class='popover-label'>Grupo de Financiamento:</div>", unsafe_allow_html=True)
         with st.popover("Selecionar Grupos", use_container_width=True):
             available_grps = sorted(df_uls['Grupo'].dropna().unique().tolist())
             
