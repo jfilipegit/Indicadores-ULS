@@ -1657,161 +1657,177 @@ else:
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # --- CROSS-CORRELATION ANALYSIS PANEL ---
-            corr_pairs = {
-                "Cons. Hospitalares": "Dias de Ausência",
-                "1ªs Consultas": "Dias de Ausência",
-                "Cir. Programadas": "Dias de Ausência",
-                "Cir. Ambulatório": "Dias de Ausência",
-                "Urgências": "Horas Trab. Extra",
-                "Total Urgência (Link)": "Horas Trab. Extra",
-                "Dias de Ausência": "Cons. Hospitalares",
-                "Horas Trab. Extra": "Cons. Hospitalares",
-                "Consultas CSP": "% Utentes c/ MdF",
-                "Cont. Enfermagem CSP": "% Utentes c/ MdF",
-                "Acesso Cons. CSP": "% Utentes c/ MdF"
-            }
-            
-            selected_ind_name = st.session_state.selected_ind
-            if selected_ind_name in corr_pairs:
-                corr_ind_name = corr_pairs[selected_ind_name]
-                
-                # Fetch metadata for the correlation indicator
-                corr_meta = [ind for ind in heatmap_indicators if ind["name"] == corr_ind_name][0]
-                corr_cols = []
-                if corr_meta.get("col"): corr_cols.append(corr_meta["col"])
-                if corr_meta.get("sum_cols"): corr_cols.extend(corr_meta["sum_cols"])
-                if corr_meta.get("ratio_cols"): corr_cols.extend(corr_meta["ratio_cols"])
-                corr_cols = list(dict.fromkeys(corr_cols))
-                
-                # Query correlation historical values
-                conn = sqlite3.connect("sns_indicadores.db")
-                df_corr_raw = pd.read_sql(
-                    f"SELECT periodo, mapped_uls, _fonte, {', '.join(f'\"{c}\"' for c in corr_cols)} FROM indicadores_sns WHERE periodo >= '2024-01' ORDER BY periodo", conn
-                )
-                conn.close()
-                
-                # Calculate timeline points for correlation indicator
-                corr_timeline = []
-                c_src_filter = corr_meta.get("source_filter")
-                c_ind_type = corr_meta["type"]
-                c_ratio_cols = corr_meta.get("ratio_cols")
-                c_sum_cols = corr_meta.get("sum_cols")
-                c_col = corr_meta.get("col")
-                
-                for p in historical_periods:
-                    df_p = df_corr_raw[df_corr_raw['periodo'] == p]
-                    u_df = df_p[df_p['mapped_uls'] == sel_uls]
-                    
-                    if c_src_filter and not u_df.empty:
-                        if '_fonte' in u_df.columns:
-                            u_df = u_df[u_df['_fonte'] == c_src_filter]
-                        else:
-                            u_df = pd.DataFrame()
-                            
-                    if u_df.empty:
-                        corr_timeline.append(np.nan)
-                        continue
+            # --- WHAT-IF SENSITIVITY ANALYSIS PANEL ---
+            # Get current value for sensitivity analysis
+            uls_timeline_df = df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]
+            val_curr = np.nan
+            if not uls_timeline_df.empty:
+                val_row = uls_timeline_df[uls_timeline_df['Periodo'] == sel_period]
+                if not val_row.empty and pd.notna(val_row['Valor'].values[0]):
+                    val_curr = val_row['Valor'].values[0]
+                else:
+                    # Fallback to the latest available value
+                    non_na = uls_timeline_df.dropna(subset=['Valor'])
+                    if not non_na.empty:
+                        val_curr = non_na['Valor'].values[-1]
                         
-                    val = np.nan
-                    if c_ind_type == "Mensal":
-                        if c_ratio_cols:
-                            valid_sub = u_df[u_df[c_ratio_cols[0]].notna() & u_df[c_ratio_cols[1]].notna()]
-                            num = valid_sub[c_ratio_cols[0]].sum()
-                            den = valid_sub[c_ratio_cols[1]].sum()
-                            val = (num / den * 100) if den > 0 else np.nan
-                        elif c_sum_cols:
-                            val = u_df[c_sum_cols].sum(skipna=True).sum()
-                        else:
-                            val = u_df[c_col].sum(skipna=True)
-                    else: # Stock / Acumulado
-                        if c_ratio_cols:
-                            valid_rows = u_df[u_df[c_ratio_cols[0]].notna() & u_df[c_ratio_cols[1]].notna()]
-                            if not valid_rows.empty:
-                                val = (valid_rows[c_ratio_cols[0]].values[0] / valid_rows[c_ratio_cols[1]].values[0]) * 100
-                        elif c_sum_cols:
-                            valid_rows = u_df[u_df[c_sum_cols].notna().any(axis=1)]
-                            if not valid_rows.empty:
-                                val = valid_rows[c_sum_cols].sum(axis=1).values[0]
-                        else:
-                            valid_rows = u_df[u_df[c_col].notna()]
-                            if not valid_rows.empty:
-                                val = valid_rows[c_col].values[0]
-                    corr_timeline.append(val)
-                    
-                # Primary indicator timeline values
-                primary_vals = df_chart[df_chart['Tipo'] == f"ULS {sel_uls}"]['Valor'].tolist()
+            if pd.notna(val_curr):
+                st.markdown(f"""
+                <div style="margin-top: 1.8rem; margin-bottom: 0.5rem;">
+                    <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        <span>📊 Análise de Sensibilidade (Cenários ±10%)</span>
+                    </h4>
+                    <p style="margin: 2px 0 0 0; font-size: 0.72rem; color: var(--text-dim);">
+                        Simulação do impacto de uma variação de ±10% no valor atual deste indicador em comparação com as médias de referência.
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                # Combine into a pandas dataframe for Pearson correlation calculation
-                df_corr_calc = pd.DataFrame({
-                    "primary": primary_vals,
-                    "secondary": corr_timeline
-                }).dropna()
+                # Calculate scenarios
+                val_minus = val_curr * 0.9
+                val_plus = val_curr * 1.1
                 
-                if len(df_corr_calc) >= 4:
-                    r_val = df_corr_calc["primary"].corr(df_corr_calc["secondary"])
-                    
-                    st.markdown(f"""
-                    <div style="margin-top: 1.5rem; margin-bottom: 0.5rem;">
-                        <h4 style="margin: 0; font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                            <span>🔍 Análise de Correlação Causa-Efeito</span>
-                        </h4>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Interpret correlation value
-                    if pd.isna(r_val):
-                        interpret = "Correlação inconclusiva devido à variabilidade dos dados."
-                    elif r_val > 0.6:
-                        interpret = f"Há uma **forte correlação positiva** (\\\\(r = {r_val:.2f}\\\\)), sugerindo que aumentos em '{selected_ind_name}' estão diretamente alinhados com o aumento de '{corr_ind_name}' ao longo do tempo."
-                    elif r_val < -0.6:
-                        interpret = f"Há uma **forte correlação inversa** (\\\\(r = {r_val:.2f}\\\\)), indicando que aumentos nas ausências ou restrições de '{corr_ind_name}' coincidem historicamente com quedas de produtividade em '{selected_ind_name}'."
+                # Fetch reference averages
+                grp_df = df_chart[df_chart['Tipo'] == f"Média Grupo {uls_grp}"]
+                val_grp = np.nan
+                if not grp_df.empty:
+                    grp_row = grp_df[grp_df['Periodo'] == sel_period]
+                    if not grp_row.empty and pd.notna(grp_row['Valor'].values[0]):
+                        val_grp = grp_row['Valor'].values[0]
                     else:
-                        interpret = f"Regista-se uma **correlação fraca ou moderada** (\\\\(r = {r_val:.2f}\\\\)) entre as duas métricas, o que indica que outros fatores externos influenciam a evolução."
+                        non_na_grp = grp_df.dropna(subset=['Valor'])
+                        if not non_na_grp.empty:
+                            val_grp = non_na_grp['Valor'].values[-1]
+                            
+                sns_df = df_chart[df_chart['Tipo'] == "Média SNS"]
+                val_nat = np.nan
+                if not sns_df.empty:
+                    sns_row = sns_df[sns_df['Periodo'] == sel_period]
+                    if not sns_row.empty and pd.notna(sns_row['Valor'].values[0]):
+                        val_nat = sns_row['Valor'].values[0]
+                    else:
+                        non_na_sns = sns_df.dropna(subset=['Valor'])
+                        if not non_na_sns.empty:
+                            val_nat = non_na_sns['Valor'].values[-1]
+                
+                is_pct = ind_pct_map.get(selected_ind, False)
+                sentido = ind_sentido_map.get(selected_ind, "+")
+                
+                def format_val(v):
+                    if pd.isna(v):
+                        return "-"
+                    if "Dívida" in selected_ind or "EBITDA" in selected_ind:
+                        if abs(v) > 10000:
+                            return f"{(v/1e6):.2f} M€"
+                        return f"{v:.2f} M€"
+                    if is_pct:
+                        return f"{v:.1f}%"
+                    return f"{v:,.1f}" if abs(v - round(v)) > 0.01 else f"{v:,.0f}"
+                
+                def build_card_html(title, val, desc, theme):
+                    if theme == "red":
+                        hdr_color = "var(--red)"
+                        bg_style = f"background: { 'rgba(239,68,68,0.03)' if not IS_DARK else 'rgba(239,68,68,0.01)' }; border-color: { 'rgba(239,68,68,0.2)' if not IS_DARK else 'rgba(239,68,68,0.1)' };"
+                    elif theme == "green":
+                        hdr_color = "var(--green)"
+                        bg_style = f"background: { 'rgba(34,197,94,0.03)' if not IS_DARK else 'rgba(34,197,94,0.01)' }; border-color: { 'rgba(34,197,94,0.2)' if not IS_DARK else 'rgba(34,197,94,0.1)' };"
+                    else:
+                        hdr_color = "var(--accent)"
+                        bg_style = f"background: { 'rgba(37,99,235,0.03)' if not IS_DARK else 'rgba(37,99,235,0.015)' }; border-color: var(--accent);"
                         
-                    st.markdown(f'<div style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 0.8rem; line-height: 1.4;">{interpret}</div>', unsafe_allow_html=True)
+                    comp_html = []
                     
-                    # Create secondary Y-axis Plotly Chart
-                    from plotly.subplots import make_subplots
-                    fig_corr = make_subplots(specs=[[{"secondary_y": True}]])
+                    def get_comp_row(ref_val, label):
+                        if pd.isna(ref_val) or ref_val == 0:
+                            return f'<div style="display: flex; justify-content: space-between; color: var(--text-dim); font-size: 0.7rem;"><span>{label}:</span> <span>-</span></div>'
+                        diff_pct = ((val - ref_val) / ref_val) * 100
+                        is_fav = diff_pct >= 0 if sentido == "+" else diff_pct <= 0
+                        color = "var(--green)" if is_fav else "var(--red)"
+                        return f"""
+                        <div style="display: flex; justify-content: space-between; font-size: 0.72rem;">
+                            <span style="color: var(--text-muted); font-weight: 500;">{label}:</span>
+                            <span style="color: {color}; font-weight: 700;">{diff_pct:+.1f}%</span>
+                        </div>
+                        """
+                        
+                    comp_html.append(get_comp_row(val_grp, f"Média Grupo ({format_val(val_grp)})"))
+                    comp_html.append(get_comp_row(val_nat, f"Média Nacional ({format_val(val_nat)})"))
                     
-                    fig_corr.add_trace(
-                        go.Scatter(x=historical_periods, y=primary_vals, name=selected_ind_name, line=dict(color="#2563eb", width=3)),
-                        secondary_y=False
-                    )
-                    
-                    fig_corr.add_trace(
-                        go.Scatter(x=historical_periods, y=corr_timeline, name=corr_ind_name, line=dict(color="#ef4444", width=2, dash="dash")),
-                        secondary_y=True
-                    )
-                    
-                    fig_corr.update_layout(
-                        paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="rgba(0,0,0,0)",
-                        font=dict(family="DM Sans, sans-serif", color="#71717a" if not IS_DARK else "#a1a1aa", size=10),
-                        margin=dict(l=40, r=40, t=10, b=40),
-                        hovermode="x unified",
-                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                        xaxis=dict(
-                            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-                            tickangle=-45
-                        ),
-                        yaxis=dict(
-                            title=dict(text=selected_ind_name, font=dict(color="#2563eb")),
-                            tickfont=dict(color="#2563eb"),
-                            gridcolor="rgba(0,0,0,0.06)" if not IS_DARK else "rgba(255,255,255,0.06)",
-                        ),
-                        yaxis2=dict(
-                            title=dict(text=corr_ind_name, font=dict(color="#ef4444")),
-                            tickfont=dict(color="#ef4444"),
-                            overlaying="y",
-                            side="right"
-                        )
-                    )
-                    
-                    st.markdown('<div class="chart-wrap">', unsafe_allow_html=True)
-                    st.plotly_chart(fig_corr, use_container_width=True, config={"displayModeBar": False})
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    return f"""
+                    <div class="sens-card" style="{bg_style}">
+                        <div>
+                            <div class="sens-card-header" style="color: {hdr_color};">{title}</div>
+                            <div class="sens-card-value">{format_val(val)}</div>
+                            <div class="sens-card-desc">{desc}</div>
+                        </div>
+                        <div class="sens-card-comparison">
+                            {"".join(comp_html)}
+                        </div>
+                    </div>
+                    """
+                
+                minus_theme = "green" if sentido == "-" else "red"
+                plus_theme = "green" if sentido == "+" else "red"
+                
+                html_sens = []
+                html_sens.append("""
+                <style>
+                .sens-container {
+                    display: flex;
+                    gap: 16px;
+                    margin-top: 0.5rem;
+                    margin-bottom: 1.5rem;
+                    flex-wrap: wrap;
+                    width: 100%;
+                }
+                .sens-card {
+                    flex: 1;
+                    min-width: 250px;
+                    background: var(--card);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius);
+                    padding: 1rem 1.1rem;
+                    box-shadow: var(--shadow);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+                .sens-card-header {
+                    font-size: 0.68rem;
+                    font-weight: 700;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    margin-bottom: 0.3rem;
+                }
+                .sens-card-value {
+                    font-size: 1.6rem;
+                    font-weight: 800;
+                    letter-spacing: -0.02em;
+                    margin-bottom: 0.2rem;
+                    color: var(--text);
+                }
+                .sens-card-desc {
+                    font-size: 0.68rem;
+                    color: var(--text-dim);
+                    margin-bottom: 0.6rem;
+                }
+                .sens-card-comparison {
+                    font-size: 0.72rem;
+                    border-top: 1px solid var(--border-subtle);
+                    padding-top: 0.5rem;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                </style>
+                """)
+                html_sens.append('<div class="sens-container">')
+                html_sens.append(build_card_html("Cenário -10%", val_minus, "Simulação de desempenho com quebra de 10%.", minus_theme))
+                html_sens.append(build_card_html("Desempenho Atual", val_curr, f"Valor real registado em {sel_period}.", "blue"))
+                html_sens.append(build_card_html("Cenário +10%", val_plus, "Simulação de desempenho com melhoria de 10%.", plus_theme))
+                html_sens.append('</div>')
+                
+                st.html("".join(html_sens))
             
         except Exception as chart_err:
             st.markdown(f'<div class="chart-wrap" style="text-align: center; padding: 2rem; color: var(--text-muted);">Não foi possível gerar o gráfico para este indicador: {str(chart_err)}</div>', unsafe_allow_html=True)
